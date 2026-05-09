@@ -1,5 +1,5 @@
 from core.domain import Notification
-from infrastructure.mock_repository import MockNotificationRepository
+from mocks.mock_repository import MockNotificationRepository
 
 def test_save_and_retrieve_notification():
     repo = MockNotificationRepository()

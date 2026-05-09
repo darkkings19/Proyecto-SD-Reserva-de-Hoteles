@@ -1,0 +1,52 @@
+services:
+  # ----------------------------------------
+  # BASES DE DATOS AISLADAS
+  # ----------------------------------------
+  notificaciones_db:
+    image: postgres:15-alpine
+    container_name: notificaciones_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NOTIFICACIONES_NAME:-notificaciones_db}
+    networks:
+      - origen-net
+    volumes:
+      - notificaciones_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NOTIFICACIONES_NAME:-notificaciones_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    # No exponemos puertos al host según las reglas de arquitectura.
+    # Internamente es accesible como 'notificaciones_db:5432'
+
+  # ----------------------------------------
+  # MICROSERVICIOS
+  # ----------------------------------------
+  notification_service:
+    build:
+      context: ./notification_service
+    container_name: notification_service
+    environment:
+      - PORT=50051
+      - DB_HOST=notificaciones_db
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_NAME=${DB_NOTIFICACIONES_NAME:-notificaciones_db}
+    networks:
+      - origen-net
+    depends_on:
+      notificaciones_db:
+        condition: service_healthy
+    restart: unless-stopped
+    # No exponemos el puerto 50051 al host. Será consumido internamente por gRPC.
+
+networks:
+  origen-net:
+    driver: bridge
+
+volumes:
+  notificaciones_data:

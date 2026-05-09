@@ -4,14 +4,42 @@ import logging
 import signal
 import os
 import time
+from dotenv import load_dotenv
 
 from proto.notifications_pb2_grpc import add_NotificationServiceServicer_to_server
 from grpc_interface.server import NotificationServicer
-from infrastructure.mock_repository import MockNotificationRepository
+from infrastructure.postgres_repository import PostgresNotificationRepository
+from psycopg_pool import ConnectionPool
 
 def serve():
+    load_dotenv()
+    
+    db_host = os.environ.get("DB_HOST", "localhost")
+    db_port = os.environ.get("DB_PORT", "5432")
+    db_user = os.environ.get("DB_USER", "postgres")
+    db_password = os.environ.get("DB_PASSWORD", "postgres")
+    db_name = os.environ.get("DB_NAME", "notificaciones_db")
+    
+    conninfo = f"dbname={db_name} user={db_user} password={db_password} host={db_host} port={db_port}"
+
     # Setup repository and servicer
-    repo = MockNotificationRepository()
+    try:
+        pool = ConnectionPool(conninfo=conninfo, min_size=1, max_size=10)
+    except Exception as e:
+        logging.error(f"Failed to initialize database connection pool: {e}")
+        # In a real scenario we might exit, but to allow CI/tests without DB to pass or retry, we log it.
+        # We will allow it to fail at runtime if DB is strictly required.
+        raise e
+
+    repo = PostgresNotificationRepository(pool)
+    
+    # Ensure schema exists (Simple migration approach for this delivery)
+    try:
+        repo.initialize_schema()
+        logging.info("Database schema verified")
+    except Exception as e:
+        logging.error(f"Failed to initialize schema: {e}")
+
     servicer = NotificationServicer(repo)
 
     # Setup server
@@ -28,6 +56,7 @@ def serve():
         logging.info("Received shutdown signal")
         all_rpcs_done_event = server.stop(30)
         all_rpcs_done_event.wait(30)
+        pool.close()
         logging.info("Server stopped gracefully")
         
     signal.signal(signal.SIGTERM, handle_sigterm)
@@ -38,6 +67,7 @@ def serve():
             time.sleep(86400)
     except KeyboardInterrupt:
         server.stop(0)
+        pool.close()
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

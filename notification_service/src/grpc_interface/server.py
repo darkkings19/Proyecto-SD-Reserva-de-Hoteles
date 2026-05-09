@@ -10,6 +10,9 @@ class NotificationServicer(NotificationServiceServicer):
 
     def SendConfirmation(self, request, context: grpc.ServicerContext) -> SendConfirmationResponse:
         try:
+            if not context.is_active():
+                return SendConfirmationResponse(success=False)
+                
             notification = Notification(
                 user_id=request.user_id,
                 reservation_id=request.reservation_id,

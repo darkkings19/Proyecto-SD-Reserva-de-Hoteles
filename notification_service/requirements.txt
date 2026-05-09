@@ -7,3 +7,7 @@ ruff>=0.2.0
 black>=24.0.0
 mypy>=1.8.0
 types-protobuf>=4.24.0
+mypy-protobuf>=3.6.0
+psycopg[binary]>=3.1.0
+psycopg_pool>=3.2.0
+python-dotenv>=1.0.0
