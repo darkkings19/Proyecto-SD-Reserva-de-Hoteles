@@ -44,6 +44,20 @@ services:
     restart: unless-stopped
     # No exponemos el puerto 50051 al host. Será consumido internamente por gRPC.
 
+  api_gateway:
+    build:
+      context: ./api_gateway
+    container_name: api_gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - NOTIFICATION_SERVICE_HOST=notification_service:50051
+    networks:
+      - origen-net
+    depends_on:
+      - notification_service
+    restart: unless-stopped
+
 networks:
   origen-net:
     driver: bridge

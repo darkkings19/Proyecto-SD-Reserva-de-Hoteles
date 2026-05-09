@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package notifications;
+
+service NotificationService {
+  rpc SendConfirmation (SendConfirmationRequest) returns (SendConfirmationResponse);
+}
+
+message SendConfirmationRequest {
+  string user_id = 1;
+  string reservation_id = 2;
+  string tipo = 3;
+}
+
+message SendConfirmationResponse {
+  bool success = 1;
+}
