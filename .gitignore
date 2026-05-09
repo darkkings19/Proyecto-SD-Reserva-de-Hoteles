@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+
+# Go
+mi-servicio/mi-servicio.exe
+mi-servicio/mi-servicio
+
+# Entornos y SO
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Dependencias (si agregas Node después)
+node_modules/
