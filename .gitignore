@@ -1,0 +1,21 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+.mypy_cache/
+.ruff_cache/
+
+# Entorno
+.env
+
+# Editor / IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Archivos de SO
+*.swp
+
+# Generados por gRPC (Opcional, pero se suelen commitear si se usan como contrato, los dejaremos commiteados por ahora a menos que decidas generarlos al compilar)
