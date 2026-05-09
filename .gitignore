@@ -1,7 +1,10 @@
 # Python
 venv/
+env/
 __pycache__/
 *.pyc
+*.py[cod]
+*$py.class
 .pytest_cache/
 .coverage
 .mypy_cache/
@@ -14,8 +17,14 @@ __pycache__/
 .vscode/
 .idea/
 .DS_Store
+Thumbs.db
 
 # Archivos de SO
 *.swp
 
-# Generados por gRPC (Opcional, pero se suelen commitear si se usan como contrato, los dejaremos commiteados por ahora a menos que decidas generarlos al compilar)
+# Go
+mi-servicio/mi-servicio.exe
+mi-servicio/mi-servicio
+
+# Dependencias
+node_modules/

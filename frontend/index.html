@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal de Reservas VIP</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg-color: #0f172a;
+            --surface: rgba(30, 41, 59, 0.7);
+            --text: #f8fafc;
+        }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-color);
+            background-image: radial-gradient(circle at top right, #312e81, transparent 40%),
+                              radial-gradient(circle at bottom left, #1e1b4b, transparent 40%);
+            color: var(--text);
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        .glass-panel {
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s ease;
+        }
+        .glass-panel:hover {
+            transform: translateY(-5px);
+        }
+        h2 {
+            font-weight: 800;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #94a3b8;
+        }
+        input, select {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            border-radius: 12px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            font-family: inherit;
+            box-sizing: border-box;
+            transition: all 0.3s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+        }
+        button {
+            width: 100%;
+            padding: 1rem;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(to right, var(--primary), #8b5cf6);
+            color: white;
+            font-weight: 600;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: opacity 0.3s, transform 0.1s;
+            margin-top: 1rem;
+        }
+        button:hover { opacity: 0.9; }
+        button:active { transform: scale(0.98); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .reservation-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #10b981;
+        }
+        .res-id { font-size: 0.8rem; color: #94a3b8; }
+        .res-title { font-weight: 600; font-size: 1.1rem; margin: 0.5rem 0; text-transform: uppercase; }
+        .res-details { display: flex; justify-content: space-between; font-size: 0.9rem; }
+        .badge {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            padding: 0.2rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .error-msg {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            padding: 1rem;
+            border-radius: 12px;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            display: none;
+        }
+        .success-msg {
+            background: rgba(16, 185, 129, 0.2);
+            color: #6ee7b7;
+            padding: 1rem;
+            border-radius: 12px;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            display: none;
+        }
+        .spinner {
+            display: inline-block;
+            width: 20px; height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        @media (max-width: 768px) {
+            .container { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Panel Izquierdo: Formulario -->
+    <div class="glass-panel">
+        <h2>Nueva Reserva</h2>
+        <form id="reservaForm">
+            <div class="form-group">
+                <label>Usuario ID</label>
+                <input type="text" id="user_id" required value="viajero-123">
+            </div>
+            <div class="form-group">
+                <label>Hotel</label>
+                <select id="hotel_id" required>
+                    <option value="hotel-playa" selected>Hotel Playa Resort (Cancún)</option>
+                    <option value="hotel-montana">Refugio Montaña (Andes)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Tipo de Habitación</label>
+                <select id="room_type_id" required>
+                    <option value="estandar">Estándar</option>
+                    <option value="suite" selected>Suite Presidencial</option>
+                    <option value="agotado">Habitación Agotada (Probar Error)</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <div class="form-group" style="flex: 1;">
+                    <label>Check-in</label>
+                    <input type="date" id="fecha_inicio" required>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Check-out</label>
+                    <input type="date" id="fecha_fin" required>
+                </div>
+            </div>
+            <button type="submit" id="submitBtn">
+                <span id="btnText">Confirmar Reserva</span>
+                <span id="btnLoader" class="spinner" style="display: none;"></span>
+            </button>
+        </form>
+
+        <div id="errorMsg" class="error-msg"></div>
+        <div id="successMsg" class="success-msg"></div>
+    </div>
+
+    <!-- Panel Derecho: Lista de Reservas -->
+    <div class="glass-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Mis Reservas</h2>
+            <button style="width: auto; padding: 0.5rem 1rem; margin-top: 0; font-size: 0.9rem;" onclick="cargarReservas()">
+                Actualizar
+            </button>
+        </div>
+        
+        <div id="emptyMsg" style="color: #94a3b8; text-align: center; margin-top: 2rem; display: none;">
+            No hay reservas guardadas en la base de datos.
+        </div>
+
+        <div id="reservasList"></div>
+    </div>
+</div>
+
+<script>
+    const API_URL = "http://127.0.0.1:8080";
+
+    // Configurar fechas por defecto al cargar la página
+    document.addEventListener("DOMContentLoaded", () => {
+        const hoy = new Date();
+        const manana = new Date(hoy); 
+        manana.setDate(manana.getDate() + 4);
+        
+        document.getElementById('fecha_inicio').valueAsDate = hoy;
+        document.getElementById('fecha_fin').valueAsDate = manana;
+        
+        cargarReservas();
+    });
+
+    // Función para listar las reservas
+    async function cargarReservas() {
+        const reservasList = document.getElementById('reservasList');
+        const emptyMsg = document.getElementById('emptyMsg');
+        
+        try {
+            const response = await fetch(`${API_URL}/reservations`);
+            if (!response.ok) throw new Error("Error al conectar con la API");
+            
+            const data = await response.json();
+            reservasList.innerHTML = ''; // Limpiar lista
+            
+            if (data.length === 0) {
+                emptyMsg.style.display = 'block';
+            } else {
+                emptyMsg.style.display = 'none';
+                data.forEach(res => {
+                    const card = document.createElement('div');
+                    card.className = 'reservation-card';
+                    card.innerHTML = `
+                        <div style="display: flex; justify-content: space-between;">
+                            <span class="res-id">${res.reservation_id}</span>
+                            <span class="badge">${res.status}</span>
+                        </div>
+                        <div class="res-title">${res.hotel_id}</div>
+                        <div class="res-details">
+                            <span>👤 ${res.user_id}</span>
+                            <span>🛏️ ${res.room_type_id}</span>
+                            <span>💰 $${res.monto_total}</span>
+                        </div>
+                    `;
+                    reservasList.appendChild(card);
+                });
+            }
+        } catch (error) {
+            console.error("Error cargando reservas:", error);
+            // No mostrar error invasivo al cargar, solo log
+        }
+    }
+
+    // Evento de formulario para crear reserva
+    document.getElementById('reservaForm').addEventListener('submit', async function(e) {
+        e.preventDefault(); // Evitar que la página recargue
+        
+        const btnText = document.getElementById('btnText');
+        const btnLoader = document.getElementById('btnLoader');
+        const submitBtn = document.getElementById('submitBtn');
+        const errorMsg = document.getElementById('errorMsg');
+        const successMsg = document.getElementById('successMsg');
+        
+        // UI de carga
+        submitBtn.disabled = true;
+        btnText.style.display = 'none';
+        btnLoader.style.display = 'inline-block';
+        errorMsg.style.display = 'none';
+        successMsg.style.display = 'none';
+        
+        const payload = {
+            user_id: document.getElementById('user_id').value,
+            hotel_id: document.getElementById('hotel_id').value,
+            room_type_id: document.getElementById('room_type_id').value,
+            fecha_inicio: document.getElementById('fecha_inicio').value,
+            fecha_fin: document.getElementById('fecha_fin').value
+        };
+
+        try {
+            const response = await fetch(`${API_URL}/reservations`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.detail || "Error desconocido");
+            }
+            
+            successMsg.textContent = `¡Reserva creada exitosamente! ID: ${data.reservation_id}`;
+            successMsg.style.display = 'block';
+            cargarReservas(); // Actualizar el listado en vivo
+            
+        } catch (error) {
+            errorMsg.textContent = error.message.includes("Failed to fetch") 
+                ? "Error de red. ¿Está corriendo el API Gateway en localhost:8080?" 
+                : error.message;
+            errorMsg.style.display = 'block';
+        } finally {
+            // Restaurar botón
+            submitBtn.disabled = false;
+            btnText.style.display = 'inline-block';
+            btnLoader.style.display = 'none';
+        }
+    });
+</script>
+
+</body>
+</html>
