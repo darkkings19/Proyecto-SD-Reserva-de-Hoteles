@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package user;
+
+option go_package = "github.com/darkkings19/mi-servicio/pb";
+
+service UserService {
+  rpc GetUser(GetUserRequest) returns (UserResponse);
+}
+
+message GetUserRequest {
+  string id = 1;
+}
+
+message User {
+  string id = 1;
+  string nombre = 2;
+  string email = 3;
+  int32 rol = 4;
+  string telefono = 5;
+  string created_at = 6;
+}
+
+message UserResponse {
+  User user = 1;
+}

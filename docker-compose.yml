@@ -90,7 +90,8 @@ services:
       - DB_NAME=${DB_NOTIFICACIONES_NAME:-notificaciones_db}
       - RESEND_API_KEY=${RESEND_API_KEY}
       - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL:-onboarding@resend.dev}
-      - RESEND_TO_EMAIL=${RESEND_TO_EMAIL:-e.loren01@ufromail.cl}
+      - DEFAULT_USER_EMAIL=${DEFAULT_USER_EMAIL:-e.loren01@ufromail.cl}
+      - USER_SERVICE_HOST=${USER_SERVICE_HOST}
     networks:
       - origen-net
     depends_on:
