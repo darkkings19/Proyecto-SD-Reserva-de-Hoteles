@@ -1,13 +1,16 @@
 import grpc.aio
 import logging
+from typing import Optional
 from proto import notifications_pb2
 from proto import notifications_pb2_grpc
+
+SendConfirmationResult = bool
 
 class NotificationClient:
     def __init__(self, host: str):
         self.host = host
 
-    async def send_confirmation(self, user_id: str, reservation_id: str, tipo: str) -> bool:
+    async def send_confirmation(self, user_id: str, reservation_id: str, tipo: str) -> SendConfirmationResult:
         try:
             async with grpc.aio.insecure_channel(self.host) as channel:
                 stub = notifications_pb2_grpc.NotificationServiceStub(channel)
@@ -19,8 +22,8 @@ class NotificationClient:
                 response = await stub.SendConfirmation(request, timeout=2.0)
                 return response.success
         except grpc.aio.AioRpcError as e:
-            logging.error(f"gRPC call failed: {e.code()} - {e.details()}")
-            return False
+            logging.error(f"gRPC SendConfirmation failed: {e.code()} - {e.details()}")
+            raise
         except Exception as e:
             logging.error(f"Unexpected error calling Notification Service: {e}")
-            return False
+            raise

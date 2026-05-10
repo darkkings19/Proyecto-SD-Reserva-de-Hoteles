@@ -18,10 +18,7 @@ class CreateReservationRequest(BaseModel):
 
 
 def get_reservations_client() -> ReservationsClient:
-    host = os.environ.get(
-        "RESERVATION_SERVICE_HOST",
-        os.environ.get("NOTIFICATION_SERVICE_HOST", "localhost:50051"),
-    )
+    host = os.environ.get("RESERVATION_SERVICE_HOST", "localhost:50051")
     return ReservationsClient(host)
 
 

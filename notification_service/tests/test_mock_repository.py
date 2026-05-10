@@ -9,6 +9,7 @@ def test_save_and_retrieve_notification():
     notifications = repo.get_by_user("1")
     assert len(notifications) == 1
     assert notifications[0].reservation_id == "100"
+    assert notifications[0].created_at is not None  # Auto-assigned by mock
 
 def test_retrieve_non_existent_user():
     repo = MockNotificationRepository()

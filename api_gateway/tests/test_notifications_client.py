@@ -31,6 +31,5 @@ async def test_send_confirmation_failure():
         
         with patch('grpc_clients.notifications_client.notifications_pb2_grpc.NotificationServiceStub', return_value=mock_stub):
             client = NotificationClient("fake-host:50051")
-            success = await client.send_confirmation("user1", "res1", "CONFIRMACION")
-            
-            assert success is False
+            with pytest.raises(grpc.aio.AioRpcError):
+                await client.send_confirmation("user1", "res1", "CONFIRMACION")
