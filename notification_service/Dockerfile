@@ -18,8 +18,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar el resto del código y la carpeta proto
 COPY . .
 
-# Regenerar los archivos gRPC automáticamente con el nuevo paquete 'pb'
-RUN python -m grpc_tools.protoc -I. --python_out=src --grpc_python_out=src proto/notifications.proto
+# Regenerar los archivos gRPC automáticamente
+RUN python -m grpc_tools.protoc -I. --python_out=src --grpc_python_out=src proto/notifications.proto && \
+    python -m grpc_tools.protoc -I. --python_out=src --grpc_python_out=src proto/user_service.proto
 
 EXPOSE 50051
 

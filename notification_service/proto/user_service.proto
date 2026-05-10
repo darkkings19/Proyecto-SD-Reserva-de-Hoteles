@@ -1,8 +1,10 @@
 syntax = "proto3";
 
-package user;
+package pb;
 
-option go_package = "github.com/darkkings19/mi-servicio/pb";
+option java_multiple_files = true;
+option java_package = "com.sde.user.grpc";
+option java_outer_classname = "UserProto";
 
 service UserService {
   rpc GetUser(GetUserRequest) returns (UserResponse);
