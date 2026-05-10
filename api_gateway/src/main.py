@@ -1,27 +1,24 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-
-# [INICIO BLOQUE TEMPORAL] ============================================
-# TODO: Eliminar la siguiente línea cuando se integre el servicio real de Reservas
-from routers import testing
-# [FIN BLOQUE TEMPORAL] ===============================================
-
-# Aquí deberán importar los routers reales a futuro:
-# from routers import reservations
+from routers import reservations
 
 # Load environment variables
 load_dotenv()
 
 app = FastAPI(title="Origen X - API Gateway", version="1.0.0")
 
-# Montar routers
-# [INICIO BLOQUE TEMPORAL] ============================================
-# TODO: Eliminar la siguiente línea cuando se integre el servicio real de Reservas
-app.include_router(testing.router, tags=["Testing (Temporal)"])
-# [FIN BLOQUE TEMPORAL] ===============================================
+# CORS: permitir que el frontend (abierto como archivo local) se comunique
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# Aquí deberán montar los routers reales a futuro:
-# app.include_router(reservations.router, prefix="/api/v1/reservations", tags=["Reservations"])
+# Montar routers
+app.include_router(reservations.router, tags=["Reservations"])
 
 @app.get("/health")
 async def health_check():

@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "github.com/darkkings19/mi-servicio/pb";
+
+// ─ Mensajes Reservas ─────────────────────────────────────────────
+
+message Reservation {
+  string reservation_id = 1;
+  string user_id        = 2;
+  string hotel_id       = 3;
+  string room_type_id   = 4;
+  string status         = 5;
+  string fecha_inicio   = 6;
+  string fecha_fin      = 7;
+  double monto_total    = 8;
+}
+
+message GetReservationRequest  { string reservation_id = 1; }
+message GetReservationResponse { Reservation reservation = 1; }
+
+message ListReservationsRequest {}
+message ListReservationsResponse {
+  repeated Reservation reservations = 1;
+}
+
+message CreateReservationRequest {
+  string user_id        = 1;
+  string hotel_id       = 2;
+  string room_type_id   = 3;
+  string fecha_inicio   = 4;
+  string fecha_fin      = 5;
+}
+message CreateReservationResponse { 
+  string reservation_id = 1;
+  string status         = 2;
+  double monto_total    = 3;
+}
+
+service ReservationService {
+  rpc GetReservation    (GetReservationRequest)    returns (GetReservationResponse);
+  rpc ListReservations  (ListReservationsRequest)  returns (ListReservationsResponse);
+  rpc CreateReservation (CreateReservationRequest) returns (CreateReservationResponse);
+}
+
+// ─ Mensajes Usuarios ─────────────────────────────────────────────
+message GetUserRequest {
+  string user_id = 1;
+}
+message GetUserResponse {
+  bool exists = 1;
+  string name = 2;
+}
+service UserService {
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+}
+
+// ─ Mensajes Inventario ─────────────────────────────────────────────
+message UpdateStockRequest {
+  string room_type_id = 1;
+  int32 cantidad      = 2;
+  string accion       = 3; // "BLOQUEAR" o "LIBERAR"
+}
+message UpdateStockResponse {
+  bool success = 1;
+}
+service InventoryService {
+  rpc UpdateStock(UpdateStockRequest) returns (UpdateStockResponse);
+}
+
+// ─ Mensajes Notificaciones ─────────────────────────────────────────────
+message SendConfirmationRequest {
+  string user_id        = 1;
+  string reservation_id = 2;
+}
+message SendConfirmationResponse {
+  bool success = 1;
+}
+service NotificationService {
+  rpc SendConfirmation(SendConfirmationRequest) returns (SendConfirmationResponse);
+}
