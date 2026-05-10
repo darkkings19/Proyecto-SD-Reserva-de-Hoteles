@@ -65,11 +65,11 @@ docker compose ps
 
 ---
 
-## 9. Cómo probar el sistema
+## 4. Cómo probar el sistema
 
 Para validar el funcionamiento del sistema, se pueden realizar peticiones directamente al **API Gateway** (`localhost:8080`). A continuación, se presentan ejemplos para entornos Windows (PowerShell) y Linux/macOS (curl).
 
-### 9.1 Pruebas desde Terminal
+### 4.1 Pruebas desde Terminal
 Se proporcionan ambas versiones para asegurar la compatibilidad multiplataforma:
 *   **Windows:** Se recomienda `Invoke-RestMethod` en PowerShell para un manejo nativo de objetos JSON.
 *   **Linux/macOS:** Se recomienda `curl` por ser el estándar en sistemas tipo Unix.
@@ -128,7 +128,7 @@ Invoke-RestMethod -Uri "http://localhost:8080/reservations" -Method Get
 curl -X GET http://localhost:8080/reservations
 ```
 
-### 9.2 Pruebas desde Interfaz Web (Frontend)
+### 4.2 Pruebas desde Interfaz Web (Frontend)
 El sistema incluye un frontend web mínimo disponible en:
 *   **URL:** `http://localhost:3000`
 
@@ -137,7 +137,7 @@ El sistema incluye un frontend web mínimo disponible en:
 *   Permite validar visualmente parte del flujo (ej. listado de hoteles o disponibilidad).
 *   **Nota Técnica:** Las pruebas por terminal (PowerShell/curl) siguen siendo las más completas para tareas de depuración y validación de las respuestas exactas de los microservicios.
 
-### 9.3 Verificación de notificaciones
+### 4.3 Verificación de notificaciones
 
 Las notificaciones del sistema se realizan internamente mediante comunicación gRPC. Cuando el `reservation_service` confirma una reserva, este invoca automáticamente al `notification_service`.
 
