@@ -39,9 +39,10 @@ class PostgresNotificationRepository(NotificationRepository):
 
     def get_by_user(self, user_id: str) -> List[Notification]:
         sql = """
-        SELECT user_id, reservation_id, tipo
+        SELECT user_id, reservation_id, tipo, created_at
         FROM notifications
-        WHERE user_id = %s;
+        WHERE user_id = %s
+        ORDER BY created_at DESC;
         """
         notifications = []
         with self.pool.connection() as conn:
@@ -50,6 +51,11 @@ class PostgresNotificationRepository(NotificationRepository):
                 rows = cursor.fetchall()
                 for row in rows:
                     notifications.append(
-                        Notification(user_id=row[0], reservation_id=row[1], tipo=row[2])
+                        Notification(
+                            user_id=row[0],
+                            reservation_id=row[1],
+                            tipo=row[2],
+                            created_at=row[3],
+                        )
                     )
         return notifications

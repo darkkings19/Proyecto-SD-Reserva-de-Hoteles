@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from proto.notifications_pb2_grpc import add_NotificationServiceServicer_to_server
 from grpc_interface.server import NotificationServicer
 from infrastructure.postgres_repository import PostgresNotificationRepository
+from infrastructure.resend_sender import ResendNotificationSender
 from psycopg_pool import ConnectionPool
 
 def serve():
@@ -40,7 +41,18 @@ def serve():
     except Exception as e:
         logging.error(f"Failed to initialize schema: {e}")
 
-    servicer = NotificationServicer(repo)
+    # ─ Notification Sender (opcional — external channel como email) ──
+    sender = None
+    resend_api_key = os.environ.get("RESEND_API_KEY")
+    if resend_api_key:
+        sender = ResendNotificationSender(
+            api_key=resend_api_key,
+            from_email=os.environ.get("RESEND_FROM_EMAIL", "onboarding@resend.dev"),
+            to_email=os.environ.get("RESEND_TO_EMAIL"),
+        )
+        logging.info("NotificationSender enabled via Resend")
+
+    servicer = NotificationServicer(repo, sender=sender)
 
     # Setup server
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))

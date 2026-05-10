@@ -88,6 +88,9 @@ services:
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
       - DB_NAME=${DB_NOTIFICACIONES_NAME:-notificaciones_db}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL:-onboarding@resend.dev}
+      - RESEND_TO_EMAIL=${RESEND_TO_EMAIL:-e.loren01@ufromail.cl}
     networks:
       - origen-net
     depends_on:

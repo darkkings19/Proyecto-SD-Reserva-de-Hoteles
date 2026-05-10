@@ -33,9 +33,11 @@ def test_save_notification(mock_pool):
 def test_get_by_user(mock_pool):
     repo = PostgresNotificationRepository(mock_pool)
     
-    # Mock the fetchall return value
+    # Mock the fetchall return value (now includes created_at)
+    from datetime import datetime
+    test_time = datetime(2026, 5, 10, 12, 0, 0)
     mock_pool._mock_cursor.fetchall.return_value = [
-        ("user1", "res1", "CONFIRMACION")
+        ("user1", "res1", "CONFIRMACION", test_time)
     ]
     
     notifications = repo.get_by_user("user1")
@@ -43,15 +45,17 @@ def test_get_by_user(mock_pool):
     mock_pool._mock_cursor.execute.assert_called_once()
     sql, params = mock_pool._mock_cursor.execute.call_args[0]
     
-    assert "SELECT user_id, reservation_id, tipo" in sql
+    assert "user_id, reservation_id, tipo, created_at" in sql
     assert "FROM notifications" in sql
     assert "WHERE user_id = %s" in sql
+    assert "ORDER BY created_at DESC" in sql
     assert params == ("user1",)
     
     assert len(notifications) == 1
     assert notifications[0].user_id == "user1"
     assert notifications[0].reservation_id == "res1"
     assert notifications[0].tipo == "CONFIRMACION"
+    assert notifications[0].created_at == test_time
 
 def test_initialize_schema(mock_pool):
     repo = PostgresNotificationRepository(mock_pool)
