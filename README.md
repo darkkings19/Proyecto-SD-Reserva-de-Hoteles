@@ -218,13 +218,13 @@ curl -X POST http://localhost:8080/login \
 
 **3. Buscar habitaciones:**
 ```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/inventory/search" -Method Post -Headers @{"Content-Type"="application/json"} -Body '{"fecha_inicio": "2026-06-01", "fecha_fin": "2026-06-10", "ubicacion": "Santiago", "precio_max": 1000, "capacidad": 2}'
+Invoke-RestMethod -Uri "http://localhost:8080/api/inventory/search" -Method Post -Headers @{"Content-Type"="application/json"} -Body '{"fecha_inicio": "2026-06-01", "fecha_fin": "2026-06-10", "ubicacion": "", "precio_max": 1000, "capacidad": 2}'
 ```
 
 ```bash
 curl -X POST http://localhost:8080/api/inventory/search \
      -H "Content-Type: application/json" \
-     -d '{"fecha_inicio": "2026-06-01", "fecha_fin": "2026-06-10", "ubicacion": "Santiago", "precio_max": 1000, "capacidad": 2}'
+     -d '{"fecha_inicio": "2026-06-01", "fecha_fin": "2026-06-10", "ubicacion": "", "precio_max": 1000, "capacidad": 2}'
 ```
 
 **4. Crear una reserva:**
@@ -256,6 +256,22 @@ El sistema incluye un frontend web mínimo disponible en:
 *   El frontend consume directamente el **API Gateway** expuesto en el puerto `8080`.
 *   Permite validar visualmente parte del flujo (ej. listado de hoteles o disponibilidad).
 *   **Nota Técnica:** Las pruebas por terminal (PowerShell/curl) siguen siendo las más completas para tareas de depuración y validación de las respuestas exactas de los microservicios.
+
+### 9.3 Verificación de notificaciones
+
+Las notificaciones del sistema se realizan internamente mediante comunicación gRPC. Cuando el `reservation_service` confirma una reserva, este invoca automáticamente al `notification_service`.
+
+Para verificar que la integración es correcta y que las notificaciones se están procesando, puedes monitorear los logs del contenedor de notificaciones:
+
+```bash
+docker compose logs --tail 30 notification_service
+```
+
+**Resultado esperado:**
+Deberías ver un log que confirme el procesamiento de la notificación, similar a:
+```text
+Notificación guardada: user=..., reservation=..., tipo=CONFIRMACION
+```
 
 ---
 
