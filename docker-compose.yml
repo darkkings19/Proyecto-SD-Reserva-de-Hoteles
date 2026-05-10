@@ -22,6 +22,24 @@ services:
     # No exponemos puertos al host según las reglas de arquitectura.
     # Internamente es accesible como 'notificaciones_db:5432'
 
+  reservas_db:
+    image: postgres:15-alpine
+    container_name: reservas_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_RESERVAS_NAME:-reservas_service}
+    networks:
+      - origen-net
+    volumes:
+      - reservas_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_RESERVAS_NAME:-reservas_service}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   # ----------------------------------------
   # MICROSERVICIOS
   # ----------------------------------------
@@ -44,6 +62,26 @@ services:
     restart: unless-stopped
     # No exponemos el puerto 50051 al host. Será consumido internamente por gRPC.
 
+  reservation_service:
+    build:
+      context: ./mi-servicio
+    container_name: reservation_service
+    ports:
+      - "50051:50051"
+    environment:
+      - RESERVAS_DB_HOST=reservas_db
+      - RESERVAS_DB_PORT=5432
+      - RESERVAS_DB_USER=${DB_USER:-postgres}
+      - RESERVAS_DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - RESERVAS_DB_NAME=${DB_RESERVAS_NAME:-reservas_service}
+      - NOTIFICATION_SERVICE_HOST=notification_service:50051
+    networks:
+      - origen-net
+    depends_on:
+      reservas_db:
+        condition: service_healthy
+    restart: unless-stopped
+
   api_gateway:
     build:
       context: ./api_gateway
@@ -51,11 +89,13 @@ services:
     ports:
       - "8080:8080"
     environment:
+      - RESERVATION_SERVICE_HOST=reservation_service:50051
       - NOTIFICATION_SERVICE_HOST=notification_service:50051
     networks:
       - origen-net
     depends_on:
       - notification_service
+      - reservation_service
     restart: unless-stopped
 
 networks:
@@ -64,3 +104,4 @@ networks:
 
 volumes:
   notificaciones_data:
+  reservas_data:
