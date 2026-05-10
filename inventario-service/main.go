@@ -98,7 +98,7 @@ func (s *inventoryServer) UpdateStock(ctx context.Context, req *pb.UpdateStockRe
 	}
 
 	rows, _ := res.RowsAffected()
-	if rows == 0 && req.Accion == pb.Action_BLOQUEAR {
+	if rows == 0 && (accionStr == "BLOQUEAR" || accionStr == "0") {
 		return nil, status.Errorf(codes.ResourceExhausted, "no hay stock suficiente")
 	}
 
@@ -150,21 +150,30 @@ func main() {
 
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, dbName)
 	
-	var db *sql.DB
-	var err error
-	for i := 0; i < 5; i++ {
-		db, err = sql.Open("postgres", connStr)
-		if err == nil && db.Ping() == nil {
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		log.Fatalf("Error inicializando conexión: %v", err)
+	}
+
+	// Reintento de conexión (Ping)
+	for i := 0; i < 15; i++ {
+		err = db.Ping()
+		if err == nil {
+			log.Println("Conexión exitosa a la base de datos de inventario")
 			break
 		}
-		log.Printf("Esperando a la base de datos... intento %d", i+1)
-		time.Sleep(2 * time.Second)
+		log.Printf("Esperando a la base de datos de inventario (%s)... intento %d/15", dbHost, i+1)
+		time.Sleep(3 * time.Second)
+	}
+
+	if err != nil {
+		log.Fatalf("No se pudo conectar a la BD de inventario tras 15 intentos: %v", err)
 	}
 
 	server := &inventoryServer{db: db}
 	server.initializeDB()
 
-	port := getEnv("PORT", "50051")
+	port := getEnv("PORT", "50053")
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		log.Fatalf("Error al escuchar: %v", err)

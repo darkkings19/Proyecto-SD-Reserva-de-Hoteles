@@ -152,9 +152,75 @@
 <body>
 
 <div class="container">
-    <!-- Panel Izquierdo: Formulario -->
-    <div class="glass-panel">
-        <h2>Nueva Reserva</h2>
+    <!-- Panel Izquierdo: Formularios -->
+    <div style="display: flex; flex-direction: column; gap: 2rem;">
+        <!-- Registro / Login -->
+        <div class="glass-panel" id="authPanel">
+            <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1rem;">
+                <h2 id="tabLogin" style="cursor: pointer; margin-bottom: 0; opacity: 1;" onclick="switchTab('login')">Entrar</h2>
+                <h2 id="tabReg" style="cursor: pointer; margin-bottom: 0; opacity: 0.5;" onclick="switchTab('reg')">Registrarse</h2>
+            </div>
+
+            <!-- Formulario Login -->
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="log_email" required placeholder="tu@email.com">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="log_password" required>
+                </div>
+                <button type="submit" id="loginBtn">
+                    <span id="loginBtnText">Iniciar Sesión</span>
+                    <span id="loginBtnLoader" class="spinner" style="display: none;"></span>
+                </button>
+            </form>
+
+            <!-- Formulario Registro -->
+            <form id="userForm" style="display: none;">
+                <div class="form-group">
+                    <label>Nombre Completo</label>
+                    <input type="text" id="reg_nombre" required placeholder="Ej: Juan Perez">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="reg_email" required placeholder="juan@ejemplo.com">
+                </div>
+                <div style="display: flex; gap: 1rem;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Password</label>
+                        <input type="password" id="reg_password" required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Teléfono</label>
+                        <input type="text" id="reg_telefono" placeholder="+569...">
+                    </div>
+                </div>
+                <button type="submit" id="userBtn">
+                    <span id="userBtnText">Crear Cuenta</span>
+                    <span id="userBtnLoader" class="spinner" style="display: none;"></span>
+                </button>
+            </form>
+
+            <div id="userErrorMsg" class="error-msg"></div>
+            <div id="userSuccessMsg" class="success-msg"></div>
+        </div>
+
+        <!-- Info Usuario Logueado (Oculto inicialmente) -->
+        <div class="glass-panel" id="userProfile" style="display: none; border-left: 4px solid var(--primary);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 style="margin-bottom: 0.2rem;">Hola, <span id="userNameDisplay">Usuario</span></h2>
+                    <p style="margin: 0; font-size: 0.8rem; color: #94a3b8;">ID: <span id="userIdDisplay">...</span></p>
+                </div>
+                <button style="width: auto; padding: 0.5rem 1rem; margin-top: 0; background: rgba(239, 68, 68, 0.2); color: #fca5a5;" onclick="logout()">Salir</button>
+            </div>
+        </div>
+
+        <!-- Nueva Reserva -->
+        <div class="glass-panel">
+            <h2>Nueva Reserva</h2>
         <form id="reservaForm">
             <div class="form-group">
                 <label>Usuario ID</label>
@@ -366,6 +432,138 @@
             btnLoader.style.display = 'none';
         }
     });
+
+    // Evento de formulario para registro de usuario
+    document.getElementById('userForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const btnText = document.getElementById('userBtnText');
+        const btnLoader = document.getElementById('userBtnLoader');
+        const submitBtn = document.getElementById('userBtn');
+        const errorMsg = document.getElementById('userErrorMsg');
+        const successMsg = document.getElementById('userSuccessMsg');
+        
+        submitBtn.disabled = true;
+        btnText.style.display = 'none';
+        btnLoader.style.display = 'inline-block';
+        errorMsg.style.display = 'none';
+        successMsg.style.display = 'none';
+        
+        const payload = {
+            nombre: document.getElementById('reg_nombre').value,
+            email: document.getElementById('reg_email').value,
+            password: document.getElementById('reg_password').value,
+            telefono: document.getElementById('reg_telefono').value
+        };
+
+        try {
+            const response = await fetch(`${API_URL}/users`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.detail || "Error al crear usuario");
+            
+            successMsg.innerHTML = `¡Usuario creado! <br><strong>ID: ${data.id}</strong><br>Copia este ID para hacer reservas.`;
+            successMsg.style.display = 'block';
+            
+            // Llenar automáticamente el campo de user_id en el form de reservas
+            document.getElementById('user_id').value = data.id;
+            
+            document.getElementById('userForm').reset();
+            
+        } catch (error) {
+            errorMsg.textContent = error.message;
+            errorMsg.style.display = 'block';
+        } finally {
+            submitBtn.disabled = false;
+            btnText.style.display = 'inline-block';
+            btnLoader.style.display = 'none';
+        }
+    });
+
+    // Lógica de Tabs
+    function switchTab(tab) {
+        const loginForm = document.getElementById('loginForm');
+        const regForm = document.getElementById('userForm');
+        const tabLogin = document.getElementById('tabLogin');
+        const tabReg = document.getElementById('tabReg');
+        
+        if (tab === 'login') {
+            loginForm.style.display = 'block';
+            regForm.style.display = 'none';
+            tabLogin.style.opacity = '1';
+            tabReg.style.opacity = '0.5';
+        } else {
+            loginForm.style.display = 'none';
+            regForm.style.display = 'block';
+            tabLogin.style.opacity = '0.5';
+            tabReg.style.opacity = '1';
+        }
+    }
+
+    // Evento Login
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const btnText = document.getElementById('loginBtnText');
+        const btnLoader = document.getElementById('loginBtnLoader');
+        const submitBtn = document.getElementById('loginBtn');
+        const errorMsg = document.getElementById('userErrorMsg');
+        
+        submitBtn.disabled = true;
+        btnText.style.display = 'none';
+        btnLoader.style.display = 'inline-block';
+        errorMsg.style.display = 'none';
+
+        try {
+            const response = await fetch(`${API_URL}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: document.getElementById('log_email').value,
+                    password: document.getElementById('log_password').value
+                })
+            });
+            
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.detail || "Error en login");
+
+            loginSuccess(data);
+            
+        } catch (error) {
+            errorMsg.textContent = error.message;
+            errorMsg.style.display = 'block';
+        } finally {
+            submitBtn.disabled = false;
+            btnText.style.display = 'inline-block';
+            btnLoader.style.display = 'none';
+        }
+    });
+
+    function loginSuccess(user) {
+        document.getElementById('authPanel').style.display = 'none';
+        document.getElementById('userProfile').style.display = 'block';
+        document.getElementById('userNameDisplay').textContent = user.nombre;
+        document.getElementById('userIdDisplay').textContent = user.id;
+        document.getElementById('user_id').value = user.id;
+        
+        localStorage.setItem('user', JSON.stringify(user));
+    }
+
+    function logout() {
+        localStorage.removeItem('user');
+        document.getElementById('authPanel').style.display = 'block';
+        document.getElementById('userProfile').style.display = 'none';
+        document.getElementById('user_id').value = '';
+    }
+
+    // Auto-login al cargar
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+        loginSuccess(JSON.parse(savedUser));
+    }
 </script>
 
 </body>

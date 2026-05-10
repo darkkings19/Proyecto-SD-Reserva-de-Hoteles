@@ -197,7 +197,7 @@ var ReservationService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	UserService_GetUser_FullMethodName = "/pb.UserService/GetUser"
+	UserService_GetUser_FullMethodName = "/com.sde.user.grpc.UserService/GetUser"
 )
 
 // UserServiceClient is the client API for UserService service.
@@ -401,7 +401,7 @@ var InventoryService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	NotificationService_SendConfirmation_FullMethodName = "/pb.NotificationService/SendConfirmation"
+	NotificationService_SendConfirmation_FullMethodName = "/notifications.NotificationService/SendConfirmation"
 )
 
 // NotificationServiceClient is the client API for NotificationService service.

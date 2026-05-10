@@ -8,6 +8,7 @@ import logging
 # Clientes locales
 from inventory_client import search_available_rooms
 from reservations_client import ReservationsClient
+from users_client import UsersClient
 
 app = FastAPI(title="Origen X - API Gateway Unificado (Slim)", version="1.1.0")
 
@@ -34,10 +35,24 @@ class CreateReservationRequest(BaseModel):
     fecha_inicio: str
     fecha_fin: str
 
+class UserRegistrationRequest(BaseModel):
+    nombre: str
+    email: str
+    password: str
+    telefono: str = ""
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
 # --- Dependencias ---
 def get_reservations_client() -> ReservationsClient:
-    host = os.environ.get("RESERVATION_SERVICE_HOST", "localhost:50051")
+    host = os.environ.get("RESERVATION_SERVICE_HOST", "localhost:50052")
     return ReservationsClient(host)
+
+def get_users_client() -> UsersClient:
+    host = os.environ.get("USER_SERVICE_HOST", "user-service:9090")
+    return UsersClient(host)
 
 # --- Endpoints de Inventario ---
 @app.post("/api/inventory/search")
@@ -91,6 +106,40 @@ async def create_reservation(req: CreateReservationRequest, client: Annotated[Re
         }
     except Exception as e:
         raise HTTPException(status_code=409, detail=str(e))
+
+@app.post("/users", status_code=201)
+async def register_user(req: UserRegistrationRequest, client: Annotated[UsersClient, Depends(get_users_client)]):
+    try:
+        user = client.create_user(
+            nombre=req.nombre,
+            email=req.email,
+            password=req.password,
+            telefono=req.telefono
+        )
+        return {
+            "id": user.id,
+            "nombre": user.nombre,
+            "email": user.email
+        }
+    except Exception as e:
+        logging.error(f"Error registrando usuario: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/login")
+async def login(req: LoginRequest, client: Annotated[UsersClient, Depends(get_users_client)]):
+    try:
+        res = client.authenticate(email=req.email, password=req.password)
+        if not res.success:
+            raise HTTPException(status_code=401, detail="Credenciales inválidas")
+        
+        return {
+            "id": res.user.id,
+            "nombre": res.user.nombre,
+            "email": res.user.email
+        }
+    except Exception as e:
+        logging.error(f"Error en login: {e}")
+        raise HTTPException(status_code=401, detail=str(e))
 
 @app.get("/health")
 async def health_check():

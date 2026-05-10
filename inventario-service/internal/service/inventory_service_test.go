@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/darkkings19/Proyecto-SD-Reserva-de-Hoteles/inventario-service/internal/domain"
-	"github.com/darkkings19/Proyecto-SD-Reserva-de-Hoteles/inventario-service/internal/service"
+	"github.com/darkkings19/inventario-service/internal/domain"
+	"github.com/darkkings19/inventario-service/internal/service"
 )
 
 // --- Mock Repository ---

@@ -6,12 +6,15 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), 'proto'))
 
 try:
-    import inventory_pb2, inventory_pb2_grpc
+    import servicio_pb2, servicio_pb2_grpc
 except ImportError:
-    from proto import inventory_pb2, inventory_pb2_grpc
+    from proto import servicio_pb2, servicio_pb2_grpc
+
+inventory_pb2 = servicio_pb2
+inventory_pb2_grpc = servicio_pb2_grpc
 
 def search_available_rooms(fecha_inicio, fecha_fin, ubicacion="", precio_max=0, capacidad=0):
-    host = os.environ.get("INVENTORY_SERVICE_HOST", "localhost:50051")
+    host = os.environ.get("INVENTORY_SERVICE_HOST", "localhost:50053")
     channel = grpc.insecure_channel(host)
     stub = inventory_pb2_grpc.InventoryServiceStub(channel)
     

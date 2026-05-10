@@ -1,3 +1,4 @@
+
 # Python
 venv/
 env/
@@ -28,3 +29,8 @@ mi-servicio/mi-servicio
 
 # Dependencias
 node_modules/
+target/
+.idea/
+.vscode/
+.env
+*.log

@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package notifications;
+package pb;
 
 service NotificationService {
   rpc SendConfirmation (SendConfirmationRequest) returns (SendConfirmationResponse);

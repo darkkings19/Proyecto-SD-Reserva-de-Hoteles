@@ -195,7 +195,7 @@ class UserServiceStub(object):
         self.GetUser = channel.unary_unary(
                 '/pb.UserService/GetUser',
                 request_serializer=servicio__pb2.GetUserRequest.SerializeToString,
-                response_deserializer=servicio__pb2.GetUserResponse.FromString,
+                response_deserializer=servicio__pb2.UserResponse.FromString,
                 _registered_method=True)
 
 
@@ -214,7 +214,7 @@ def add_UserServiceServicer_to_server(servicer, server):
             'GetUser': grpc.unary_unary_rpc_method_handler(
                     servicer.GetUser,
                     request_deserializer=servicio__pb2.GetUserRequest.FromString,
-                    response_serializer=servicio__pb2.GetUserResponse.SerializeToString,
+                    response_serializer=servicio__pb2.UserResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -243,7 +243,7 @@ class UserService(object):
             target,
             '/pb.UserService/GetUser',
             servicio__pb2.GetUserRequest.SerializeToString,
-            servicio__pb2.GetUserResponse.FromString,
+            servicio__pb2.UserResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -264,6 +264,11 @@ class InventoryServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
+        self.SearchAvailableRooms = channel.unary_unary(
+                '/pb.InventoryService/SearchAvailableRooms',
+                request_serializer=servicio__pb2.SearchRequest.SerializeToString,
+                response_deserializer=servicio__pb2.SearchResponse.FromString,
+                _registered_method=True)
         self.UpdateStock = channel.unary_unary(
                 '/pb.InventoryService/UpdateStock',
                 request_serializer=servicio__pb2.UpdateStockRequest.SerializeToString,
@@ -274,6 +279,12 @@ class InventoryServiceStub(object):
 class InventoryServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
+    def SearchAvailableRooms(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def UpdateStock(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -283,6 +294,11 @@ class InventoryServiceServicer(object):
 
 def add_InventoryServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
+            'SearchAvailableRooms': grpc.unary_unary_rpc_method_handler(
+                    servicer.SearchAvailableRooms,
+                    request_deserializer=servicio__pb2.SearchRequest.FromString,
+                    response_serializer=servicio__pb2.SearchResponse.SerializeToString,
+            ),
             'UpdateStock': grpc.unary_unary_rpc_method_handler(
                     servicer.UpdateStock,
                     request_deserializer=servicio__pb2.UpdateStockRequest.FromString,
@@ -298,6 +314,33 @@ def add_InventoryServiceServicer_to_server(servicer, server):
  # This class is part of an EXPERIMENTAL API.
 class InventoryService(object):
     """Missing associated documentation comment in .proto file."""
+
+    @staticmethod
+    def SearchAvailableRooms(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/pb.InventoryService/SearchAvailableRooms',
+            servicio__pb2.SearchRequest.SerializeToString,
+            servicio__pb2.SearchResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
 
     @staticmethod
     def UpdateStock(request,

@@ -417,7 +417,7 @@ const file_inventory_proto_rawDesc = "" +
 	"\aLIBERAR\x10\x012\xad\x01\n" +
 	"\x10InventoryService\x12K\n" +
 	"\x14SearchAvailableRooms\x12\x18.inventory.SearchRequest\x1a\x19.inventory.SearchResponse\x12L\n" +
-	"\vUpdateStock\x12\x1d.inventory.UpdateStockRequest\x1a\x1e.inventory.UpdateStockResponseBXZVgithub.com/darkkings19/Proyecto-SD-Reserva-de-Hoteles/inventario-service/proto/gen;genb\x06proto3"
+	"\vUpdateStock\x12\x1d.inventory.UpdateStockRequest\x1a\x1e.inventory.UpdateStockResponseB4Z2github.com/darkkings19/inventario-service/proto/gen;genb\x06proto3"
 
 var (
 	file_inventory_proto_rawDescOnce sync.Once

@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package pb;
+
+
+
+option java_multiple_files = true;
+option java_package = "com.sde.user.grpc";
+option java_outer_classname = "UserProto";
+
+// Enum para roles. Siempre empezamos con un valor por defecto (0) por buenas prácticas en Protobuf.
+enum Role {
+    ROLE_UNSPECIFIED = 0;
+    CLIENTE = 1;
+    ADMINISTRADOR = 2;
+}
+
+// Representación limpia y segura del usuario.
+// Se excluye password_hash explícitamente ya que no debe viajar por la red como respuesta general.
+message User {
+    string id = 1; // UUID se representa típicamente como string en gRPC
+    string nombre = 2;
+    string email = 3;
+    Role rol = 4;
+    string telefono = 5;
+    string created_at = 6;
+}
+
+// ----- REQUESTS -----
+
+// Request para crear un usuario
+message CreateUserRequest {
+    string nombre = 1;
+    string email = 2;
+    string password = 3; // Contraseña en texto plano, el backend hará el hashing
+    Role rol = 4;
+    string telefono = 5;
+}
+
+// Request para obtener un perfil de usuario por ID
+message GetUserRequest {
+    string id = 1; // UUID del usuario a buscar
+}
+
+// Request para actualizar un usuario
+// No incluimos email ni rol por seguridad (suele requerir lógica o endpoints especiales)
+message UpdateUserRequest {
+    string id = 1;
+    string nombre = 2;
+    string telefono = 3;
+}
+
+// Request para la validación de credenciales (usado por el API Gateway u otro microservicio)
+message AuthenticateUserRequest {
+    string email = 1;
+    string password = 2; // Contraseña que el cliente ingresa, el backend validará contra el hash
+}
+
+
+// ----- RESPONSES -----
+
+// Response estándar que encapsula al usuario. Útil para Create, Get y Update.
+// Permite agregar más metadatos en el futuro sin romper el contrato (ej. boolean success).
+message UserResponse {
+    User user = 1;
+}
+
+// Response exclusivo para autenticación.
+// Mantiene separado el dominio de Auth del perfil público general.
+message AuthenticateUserResponse {
+    bool success = 1;
+    User user = 2;
+    // Si más adelante el user-service asume la generación del JWT, se podría agregar:
+    // string access_token = 3;
+}
+
+
+// ----- SERVICIO -----
+
+// Definición del contrato del microservicio de Usuarios
+service UserService {
+    
+    // Caso de Uso: Crear un nuevo usuario
+    rpc CreateUser (CreateUserRequest) returns (UserResponse);
+    
+    // Caso de Uso: Obtener el perfil del usuario (ej. para Mi Perfil)
+    rpc GetUser (GetUserRequest) returns (UserResponse);
+    
+    // Caso de Uso: Actualizar los datos del usuario
+    rpc UpdateUser (UpdateUserRequest) returns (UserResponse);
+    
+    // Caso de Uso: Autenticar a un usuario (Validar credenciales)
+    rpc AuthenticateUser (AuthenticateUserRequest) returns (AuthenticateUserResponse);
+}

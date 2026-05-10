@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package reservation;
+package pb;
 
 option go_package = "github.com/darkkings19/mi-servicio/pb";
 
@@ -44,35 +44,46 @@ service ReservationService {
   rpc CreateReservation (CreateReservationRequest) returns (CreateReservationResponse);
 }
 
-// ─ Mensajes Usuarios ─────────────────────────────────────────────
+// ─ Mensajes Usuarios (Sincronizados con user-service) ─────────────────────────────────────────────
 message GetUserRequest {
-  string user_id = 1;
-}
-message GetUserResponse {
-  bool exists = 1;
-  string name = 2;
-}
-service UserService {
-  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  string id = 1;
 }
 
-// ─ Mensajes Inventario ─────────────────────────────────────────────
+message User {
+    string id = 1;
+    string nombre = 2;
+    string email = 3;
+    int32 rol = 4;
+    string telefono = 5;
+    string created_at = 6;
+}
+
+message UserResponse {
+    User user = 1;
+}
+
+service UserService {
+  rpc GetUser(GetUserRequest) returns (UserResponse);
+}
+
+// ─ Mensajes Inventario (Sincronizados con inventario-service) ─────────────────────────────────────────────
 message UpdateStockRequest {
   string room_type_id = 1;
   int32 cantidad      = 2;
   string accion       = 3; // "BLOQUEAR" o "LIBERAR"
 }
 message UpdateStockResponse {
-  bool success = 1;
+  bool status = 1;
 }
 service InventoryService {
   rpc UpdateStock(UpdateStockRequest) returns (UpdateStockResponse);
 }
 
-// ─ Mensajes Notificaciones ─────────────────────────────────────────────
+// ─ Mensajes Notificaciones (Sincronizados con notification_service) ─────────────────────────────────────────────
 message SendConfirmationRequest {
   string user_id        = 1;
   string reservation_id = 2;
+  string tipo          = 3;
 }
 message SendConfirmationResponse {
   bool success = 1;
