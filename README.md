@@ -218,13 +218,13 @@ curl -X POST http://localhost:8080/login \
 
 **3. Buscar habitaciones:**
 ```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/inventory/search" -Method Post -Headers @{"Content-Type"="application/json"} -Body '{"fecha_inicio": "2026-06-01", "fecha_fin": "2026-06-10", "ubicacion": "", "precio_max": 1000, "capacidad": 2}'
+Invoke-RestMethod -Uri "http://localhost:8080/api/inventory/search" -Method Post -Headers @{"Content-Type"="application/json"} -Body '{"fecha_inicio": "2026-06-01", "fecha_fin": "2026-06-10", "ubicacion": "", "precio_max": 999999, "capacidad": 2}'
 ```
 
 ```bash
 curl -X POST http://localhost:8080/api/inventory/search \
      -H "Content-Type: application/json" \
-     -d '{"fecha_inicio": "2026-06-01", "fecha_fin": "2026-06-10", "ubicacion": "", "precio_max": 1000, "capacidad": 2}'
+     -d '{"fecha_inicio": "2026-06-01", "fecha_fin": "2026-06-10", "ubicacion": "", "precio_max": 999999, "capacidad": 2}'
 ```
 
 **4. Crear una reserva:**
