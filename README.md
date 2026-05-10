@@ -42,7 +42,12 @@ El sistema sigue una arquitectura orientada a microservicios, donde el acceso ex
 
 ```mermaid
 graph TD
-    Client[Cliente Web / Frontend] -->|REST HTTP| Gateway[API Gateway :8080]
+    Browser[Navegador / Usuario]
+    Frontend[Frontend Next.js :3000]
+    Gateway[API Gateway :8080]
+
+    Browser -->|HTTP| Frontend
+    Frontend -->|REST HTTP| Gateway
 
     Gateway -->|gRPC| UserService[user-service :9090]
     Gateway -->|gRPC| InventoryService[inventario_service :50053]
@@ -56,12 +61,6 @@ graph TD
     InventoryService -->|TCP| InvDB[(inventario_db :5432)]
     ReservationService -->|TCP| ResDB[(reservas_db :5432)]
     NotificationService -->|TCP| NotifDB[(notificaciones_db :5432)]
-
-    classDef service fill:#f9f,stroke:#333,stroke-width:2px;
-    classDef db fill:#bbf,stroke:#333,stroke-width:2px;
-    
-    class Gateway,UserService,InventoryService,ReservationService,NotificationService service;
-    class UserDB,InvDB,ResDB,NotifDB db;
 ```
 
 ---
