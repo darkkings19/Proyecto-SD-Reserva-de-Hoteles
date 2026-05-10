@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"net"
+	"os"
 	"time"
 
 	"google.golang.org/grpc"
@@ -14,15 +16,23 @@ import (
 	"google.golang.org/grpc/status"
 
 	_ "github.com/lib/pq"
+	notifpb "github.com/darkkings19/mi-servicio/pb/notification"
 	pb "github.com/darkkings19/mi-servicio/pb"
 )
+
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
 
 // ─ Servidor de Reservas ─────────────────────────────────────────────
 type reservationServer struct {
 	pb.UnimplementedReservationServiceServer
 	userClient         pb.UserServiceClient
 	inventoryClient    pb.InventoryServiceClient
-	notificationClient pb.NotificationServiceClient
+	notificationClient notifpb.NotificationServiceClient
 	db                 *sql.DB
 }
 
@@ -94,13 +104,19 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 
 	log.Printf("[Reservas] Reserva %s asegurada en base de datos PostgreSQL con estado CONFIRMADA", reservationId)
 
-	// 4. Enviar Notificación (MOCK LOCAL - Fire-and-forget simulado)
+	// 4. Enviar Notificación al servicio real (fire-and-forget — no bloquea la respuesta)
 	go func() {
-		time.Sleep(200 * time.Millisecond) // Simular latencia de red
-		if req.UserId == "timeout_user" {
-			log.Printf("[Reservas] (Mock) Alerta: Fallo al enviar notificación (asegurada en DB de todas formas)")
+		notifCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		_, err := s.notificationClient.SendConfirmation(notifCtx, &notifpb.SendConfirmationRequest{
+			UserId:        req.UserId,
+			ReservationId: reservationId,
+			Tipo:          "CONFIRMACION",
+		})
+		if err != nil {
+			log.Printf("[Reservas] Error al enviar notificación: %v (la reserva ya está asegurada en DB)", err)
 		} else {
-			log.Printf("[Reservas] (Mock) Notificación enviada exitosamente al usuario")
+			log.Printf("[Reservas] Notificación enviada exitosamente al servicio de notificaciones")
 		}
 	}()
 
@@ -115,8 +131,12 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 // ─ Main ─────────────────────────────────────────────
 func main() {
 	// --- Configuración Base de Datos PostgreSQL ---
-	// NOTA: Cambia los datos de conexión según tu base de datos local o de Supabase
-	connStr := "postgres://postgres:$$vOlMfm0O@localhost:5432/reservas_service?sslmode=disable"
+	dbHost := getEnv("RESERVAS_DB_HOST", "localhost")
+	dbPort := getEnv("RESERVAS_DB_PORT", "5432")
+	dbUser := getEnv("RESERVAS_DB_USER", "postgres")
+	dbPassword := getEnv("RESERVAS_DB_PASSWORD", "postgres")
+	dbName := getEnv("RESERVAS_DB_NAME", "reservas_service")
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, dbName)
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatalf("Error al preparar la conexión a PostgreSQL: %v", err)
@@ -157,14 +177,15 @@ func main() {
 	if err != nil { log.Fatalf("Error conectando a Inventario: %v", err) }
 	defer invConn.Close()
 
-	notifConn, err := grpc.Dial("localhost:50054", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil { log.Fatalf("Error conectando a Notificaciones: %v", err) }
+	notifHost := getEnv("NOTIFICATION_SERVICE_HOST", "localhost:50051")
+	notifConn, err := grpc.Dial(notifHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil { log.Fatalf("Error conectando a Notificaciones (%s): %v", notifHost, err) }
 	defer notifConn.Close()
 
 	resServer := &reservationServer{
 		userClient:         pb.NewUserServiceClient(userConn),
 		inventoryClient:    pb.NewInventoryServiceClient(invConn),
-		notificationClient: pb.NewNotificationServiceClient(notifConn),
+		notificationClient: notifpb.NewNotificationServiceClient(notifConn),
 		db:                 db,
 	}
 
@@ -179,7 +200,7 @@ func main() {
 	reflection.Register(srv)
 
 	log.Println("Servidor de Reservas escuchando en el puerto :50051")
-	log.Println("Esperando dependencias externas en puertos 50052, 50053 y 50054...")
+	log.Println("Esperando dependencias externas: Usuarios(50052), Inventario(50053), Notificaciones(...)")
 	
 	if err := srv.Serve(lis); err != nil {
 		log.Fatalf("Error al servir Reservas: %v", err)
