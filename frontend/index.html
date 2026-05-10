@@ -163,16 +163,13 @@
             <div class="form-group">
                 <label>Hotel</label>
                 <select id="hotel_id" required>
-                    <option value="hotel-playa" selected>Hotel Playa Resort (Cancún)</option>
-                    <option value="hotel-montana">Refugio Montaña (Andes)</option>
+                    <option value="">Cargando hoteles...</option>
                 </select>
             </div>
             <div class="form-group">
                 <label>Tipo de Habitación</label>
                 <select id="room_type_id" required>
-                    <option value="estandar">Estándar</option>
-                    <option value="suite" selected>Suite Presidencial</option>
-                    <option value="agotado">Habitación Agotada (Probar Error)</option>
+                    <option value="">Selecciona un hotel primero</option>
                 </select>
             </div>
             <div style="display: flex; gap: 1rem;">
@@ -215,6 +212,53 @@
 <script>
     const API_URL = "http://127.0.0.1:8080";
 
+    // Función para cargar hoteles y habitaciones desde el inventario
+    async function cargarInventario() {
+        const hotelSelect = document.getElementById('hotel_id');
+        const roomSelect = document.getElementById('room_type_id');
+        
+        try {
+            const response = await fetch(`${API_URL}/api/inventory/search`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fecha_inicio: "2024-01-01", fecha_fin: "2024-12-31" })
+            });
+            
+            const data = await response.json();
+            const rooms = data.rooms || [];
+            
+            if (rooms.length === 0) return;
+
+            // Guardar inventario globalmente para filtrar
+            window.inventarioGlobal = rooms;
+
+            // Llenar hoteles únicos
+            const hotelesUnicos = [...new Set(rooms.map(r => r.hotel_id))];
+            hotelSelect.innerHTML = '';
+            hotelesUnicos.forEach(hId => {
+                const room = rooms.find(r => r.hotel_id === hId);
+                const opt = new Option(room.nombre_hotel, hId);
+                hotelSelect.add(opt);
+            });
+
+            // Función para actualizar habitaciones según hotel seleccionado
+            const actualizarHabitaciones = () => {
+                const selectedHotel = hotelSelect.value;
+                roomSelect.innerHTML = '';
+                rooms.filter(r => r.hotel_id === selectedHotel).forEach(r => {
+                    const opt = new Option(`${r.room_type_name} ($${r.precio_noche})`, r.room_type_id);
+                    roomSelect.add(opt);
+                });
+            };
+
+            hotelSelect.onchange = actualizarHabitaciones;
+            actualizarHabitaciones(); // Carga inicial
+
+        } catch (error) {
+            console.error("Error cargando inventario:", error);
+        }
+    }
+
     // Configurar fechas por defecto al cargar la página
     document.addEventListener("DOMContentLoaded", () => {
         const hoy = new Date();
@@ -224,6 +268,7 @@
         document.getElementById('fecha_inicio').valueAsDate = hoy;
         document.getElementById('fecha_fin').valueAsDate = manana;
         
+        cargarInventario();
         cargarReservas();
     });
 

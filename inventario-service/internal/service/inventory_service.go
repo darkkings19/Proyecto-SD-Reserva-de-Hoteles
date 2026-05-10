@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"github.com/darkkings19/Proyecto-SD-Reserva-de-Hoteles/inventario-service/internal/domain"
-	"github.com/darkkings19/Proyecto-SD-Reserva-de-Hoteles/inventario-service/internal/repository"
+	"github.com/darkkings19/inventario-service/internal/domain"
+	"github.com/darkkings19/inventario-service/internal/repository"
 )
 
 type InventoryService struct {

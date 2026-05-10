@@ -19,9 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ReservationService_GetReservation_FullMethodName    = "/pb.ReservationService/GetReservation"
-	ReservationService_ListReservations_FullMethodName  = "/pb.ReservationService/ListReservations"
-	ReservationService_CreateReservation_FullMethodName = "/pb.ReservationService/CreateReservation"
+	ReservationService_GetReservation_FullMethodName    = "/reservation.ReservationService/GetReservation"
+	ReservationService_ListReservations_FullMethodName  = "/reservation.ReservationService/ListReservations"
+	ReservationService_CreateReservation_FullMethodName = "/reservation.ReservationService/CreateReservation"
 )
 
 // ReservationServiceClient is the client API for ReservationService service.
@@ -176,7 +176,7 @@ func _ReservationService_CreateReservation_Handler(srv interface{}, ctx context.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ReservationService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "pb.ReservationService",
+	ServiceName: "reservation.ReservationService",
 	HandlerType: (*ReservationServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -299,7 +299,7 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	InventoryService_UpdateStock_FullMethodName = "/pb.InventoryService/UpdateStock"
+	InventoryService_UpdateStock_FullMethodName = "/inventory.InventoryService/UpdateStock"
 )
 
 // InventoryServiceClient is the client API for InventoryService service.

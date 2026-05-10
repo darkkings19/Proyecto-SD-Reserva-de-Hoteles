@@ -151,6 +151,7 @@ type RoomTypeAvailability struct {
 	PrecioNoche     float64                `protobuf:"fixed64,4,opt,name=precio_noche,json=precioNoche,proto3" json:"precio_noche,omitempty"`
 	Capacidad       int32                  `protobuf:"varint,5,opt,name=capacidad,proto3" json:"capacidad,omitempty"`
 	StockDisponible int32                  `protobuf:"varint,6,opt,name=stock_disponible,json=stockDisponible,proto3" json:"stock_disponible,omitempty"` // Unidades disponibles actualmente
+	RoomTypeName    string                 `protobuf:"bytes,7,opt,name=room_type_name,json=roomTypeName,proto3" json:"room_type_name,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -225,6 +226,13 @@ func (x *RoomTypeAvailability) GetStockDisponible() int32 {
 		return x.StockDisponible
 	}
 	return 0
+}
+
+func (x *RoomTypeAvailability) GetRoomTypeName() string {
+	if x != nil {
+		return x.RoomTypeName
+	}
+	return ""
 }
 
 type SearchResponse struct {

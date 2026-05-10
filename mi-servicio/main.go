@@ -80,11 +80,19 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 		return nil, status.Errorf(codes.NotFound, "usuario no encontrado")
 	}
 
-	// 2. Bloquear Inventario (MOCK LOCAL - Sin llamar al servicio real)
-	log.Printf("[Reservas] (Mock) Solicitando bloqueo de inventario para %s...", req.RoomTypeId)
-	if req.RoomTypeId == "agotado" {
-		return nil, status.Errorf(codes.ResourceExhausted, "inventario agotado o rechazado")
+	// 2. Bloquear Inventario REAL en el Servicio de Inventario
+	log.Printf("[Reservas] Solicitando bloqueo de inventario real para %s...", req.RoomTypeId)
+	_, errInv := s.inventoryClient.UpdateStock(ctx, &pb.UpdateStockRequest{
+		RoomTypeId: req.RoomTypeId,
+		Cantidad:   1,
+		Accion:     "BLOQUEAR",
+	})
+	
+	if errInv != nil {
+		log.Printf("[Reservas] Error al bloquear inventario: %v", errInv)
+		return nil, status.Errorf(codes.ResourceExhausted, "No se pudo asegurar la habitación: %v", status.Convert(errInv).Message())
 	}
+	log.Printf("[Reservas] Inventario bloqueado exitosamente para %s", req.RoomTypeId)
 
 	// 3. Crear Reserva en DB (PostgreSQL)
 	reservationId := "res-" + time.Now().Format("20060102150405")
@@ -173,8 +181,9 @@ func main() {
 	if err != nil { log.Fatalf("Error conectando a Usuarios: %v", err) }
 	defer userConn.Close()
 
-	invConn, err := grpc.Dial("localhost:50053", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil { log.Fatalf("Error conectando a Inventario: %v", err) }
+	invHost := getEnv("INVENTORY_SERVICE_HOST", "localhost:50053")
+	invConn, err := grpc.Dial(invHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil { log.Fatalf("Error conectando a Inventario (%s): %v", invHost, err) }
 	defer invConn.Close()
 
 	notifHost := getEnv("NOTIFICATION_SERVICE_HOST", "localhost:50051")

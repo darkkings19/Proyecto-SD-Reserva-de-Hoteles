@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package inventory;
+
+service InventoryService {
+  rpc SearchAvailableRooms(SearchRequest) returns (SearchResponse);
+  rpc UpdateStock(UpdateStockRequest) returns (UpdateStockResponse);
+}
+
+message SearchRequest {
+  string ubicacion = 1;
+  float precio_max = 2;
+  int32 capacidad = 3;
+}
+
+message RoomTypeAvailability {
+  string hotel_id = 1;
+  string nombre_hotel = 2;
+  string room_type_id = 3;
+  float precio_noche = 4;
+  int32 capacidad = 5;
+  int32 stock_disponible = 6;
+  string room_type_name = 7;
+}
+
+message SearchResponse {
+  repeated RoomTypeAvailability rooms = 1;
+}
+
+message UpdateStockRequest {
+  string room_type_id = 1;
+  int32 cantidad = 2;
+  string accion = 3;
+}
+
+message UpdateStockResponse {
+  bool success = 1;
+}

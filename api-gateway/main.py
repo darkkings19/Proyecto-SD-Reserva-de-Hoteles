@@ -1,13 +1,16 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-import grpc
-import servicio_pb2
-import servicio_pb2_grpc
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import Annotated
+import os
+import logging
 
-app = FastAPI(title="API Gateway de Reservas")
+# Clientes locales
+from inventory_client import search_available_rooms
+from reservations_client import ReservationsClient
 
-# Habilitar CORS para que el frontend pueda comunicarse
+app = FastAPI(title="Origen X - API Gateway Unificado (Slim)", version="1.1.0")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -16,63 +19,79 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class ReservationReq(BaseModel):
+# --- Modelos de Datos ---
+class SearchRoomsRequest(BaseModel):
+    fecha_inicio: str
+    fecha_fin: str
+    ubicacion: str = ""
+    precio_max: float = 0
+    capacidad: int = 0
+
+class CreateReservationRequest(BaseModel):
     user_id: str
     hotel_id: str
     room_type_id: str
     fecha_inicio: str
     fecha_fin: str
 
-@app.post("/reservations", status_code=201)
-def create_reservation(req: ReservationReq):
-    try:
-        # Conexión gRPC hacia el servicio de Go (puerto 50051)
-        channel = grpc.insecure_channel('localhost:50051')
-        stub = servicio_pb2_grpc.ReservationServiceStub(channel)
-        
-        # Llamar al método gRPC
-        grpc_req = servicio_pb2.CreateReservationRequest(
-            user_id=req.user_id,
-            hotel_id=req.hotel_id,
-            room_type_id=req.room_type_id,
-            fecha_inicio=req.fecha_inicio,
-            fecha_fin=req.fecha_fin
-        )
-        response = stub.CreateReservation(grpc_req)
-        
-        return {
-            "reservation_id": response.reservation_id,
-            "status": response.status,
-            "monto_total": response.monto_total
-        }
-    except grpc.RpcError as e:
-        raise HTTPException(status_code=400, detail=f"Error gRPC ({e.code()}): {e.details()}")
+# --- Dependencias ---
+def get_reservations_client() -> ReservationsClient:
+    host = os.environ.get("RESERVATION_SERVICE_HOST", "localhost:50051")
+    return ReservationsClient(host)
 
-@app.get("/reservations")
-def list_reservations():
-    """Obtiene las reservas llamando directamente a Go por gRPC, delegando la base de datos a Go."""
+# --- Endpoints de Inventario ---
+@app.post("/api/inventory/search")
+async def search_rooms(req: SearchRoomsRequest):
     try:
-        channel = grpc.insecure_channel('localhost:50051')
-        stub = servicio_pb2_grpc.ReservationServiceStub(channel)
-        
-        # Llamar a Go para que él le pregunte a PostgreSQL
-        response = stub.ListReservations(servicio_pb2.ListReservationsRequest())
-        
-        reservations = []
-        for r in response.reservations:
-            reservations.append({
+        rooms = search_available_rooms(
+            fecha_inicio=req.fecha_inicio,
+            fecha_fin=req.fecha_fin,
+            ubicacion=req.ubicacion,
+            precio_max=req.precio_max,
+            capacidad=req.capacidad
+        )
+        return {"rooms": rooms}
+    except Exception as e:
+        logging.error(f"Error en búsqueda: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- Endpoints de Reservas ---
+@app.get("/reservations")
+async def list_reservations(client: Annotated[ReservationsClient, Depends(get_reservations_client)]):
+    try:
+        reservations = await client.list_reservations()
+        return [
+            {
                 "reservation_id": r.reservation_id,
                 "user_id": r.user_id,
                 "hotel_id": r.hotel_id,
                 "room_type_id": r.room_type_id,
                 "status": r.status,
-                "monto_total": r.monto_total
-            })
-        return reservations
-    except grpc.RpcError as e:
-        raise HTTPException(status_code=500, detail=f"Error de conexión con Go: {e.details()}")
+                "monto_total": float(r.monto_total),
+            }
+            for r in reservations
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
 
-if __name__ == "__main__":
-    import uvicorn
-    # Corre el servidor en localhost:8080
-    uvicorn.run(app, host="127.0.0.1", port=8080)
+@app.post("/reservations", status_code=201)
+async def create_reservation(req: CreateReservationRequest, client: Annotated[ReservationsClient, Depends(get_reservations_client)]):
+    try:
+        result = await client.create_reservation(
+            user_id=req.user_id,
+            hotel_id=req.hotel_id,
+            room_type_id=req.room_type_id,
+            fecha_inicio=req.fecha_inicio,
+            fecha_fin=req.fecha_fin,
+        )
+        return {
+            "reservation_id": result.reservation_id,
+            "status": result.status,
+            "monto_total": result.monto_total,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}

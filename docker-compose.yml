@@ -75,6 +75,7 @@ services:
       - RESERVAS_DB_PASSWORD=${DB_PASSWORD:-postgres}
       - RESERVAS_DB_NAME=${DB_RESERVAS_NAME:-reservas_service}
       - NOTIFICATION_SERVICE_HOST=notification_service:50051
+      - INVENTORY_SERVICE_HOST=inventario_service:50051
     networks:
       - origen-net
     depends_on:
@@ -82,20 +83,58 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  inventario_db:
+    image: postgres:15-alpine
+    container_name: inventario_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: inventario_db
+    networks:
+      - origen-net
+    volumes:
+      - inventario_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d inventario_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  inventario_service:
+    build:
+      context: ./inventario-service
+    container_name: inventario_service
+    environment:
+      - PORT=50051
+      - DB_HOST=inventario_db
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_NAME=inventario_db
+    networks:
+      - origen-net
+    depends_on:
+      inventario_db:
+        condition: service_healthy
+    restart: unless-stopped
+
   api_gateway:
     build:
-      context: ./api_gateway
+      context: ./api-gateway
     container_name: api_gateway
     ports:
       - "8080:8080"
     environment:
       - RESERVATION_SERVICE_HOST=reservation_service:50051
       - NOTIFICATION_SERVICE_HOST=notification_service:50051
+      - INVENTORY_SERVICE_HOST=inventario_service:50051
     networks:
       - origen-net
     depends_on:
       - notification_service
       - reservation_service
+      - inventario_service
     restart: unless-stopped
 
 networks:
@@ -105,3 +144,4 @@ networks:
 volumes:
   notificaciones_data:
   reservas_data:
+  inventario_data:

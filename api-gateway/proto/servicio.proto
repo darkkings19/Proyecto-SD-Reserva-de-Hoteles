@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package reservation;
+
+option go_package = "github.com/darkkings19/mi-servicio/pb";
+
+message Reservation {
+  string reservation_id = 1;
+  string user_id        = 2;
+  string hotel_id       = 3;
+  string room_type_id   = 4;
+  string status         = 5;
+  string fecha_inicio   = 6;
+  string fecha_fin      = 7;
+  double monto_total    = 8;
+}
+
+message ListReservationsRequest {}
+message ListReservationsResponse {
+  repeated Reservation reservations = 1;
+}
+
+message CreateReservationRequest {
+  string user_id        = 1;
+  string hotel_id       = 2;
+  string room_type_id   = 3;
+  string fecha_inicio   = 4;
+  string fecha_fin      = 5;
+}
+message CreateReservationResponse { 
+  string reservation_id = 1;
+  string status         = 2;
+  double monto_total    = 3;
+}
+
+service ReservationService {
+  rpc ListReservations  (ListReservationsRequest)  returns (ListReservationsResponse);
+  rpc CreateReservation (CreateReservationRequest) returns (CreateReservationResponse);
+}

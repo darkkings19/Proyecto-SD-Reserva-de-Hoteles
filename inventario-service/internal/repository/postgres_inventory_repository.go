@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/darkkings19/Proyecto-SD-Reserva-de-Hoteles/inventario-service/internal/domain"
+	"github.com/darkkings19/inventario-service/internal/domain"
 	"gorm.io/gorm"
 )
 

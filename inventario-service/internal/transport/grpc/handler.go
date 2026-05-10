@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/darkkings19/Proyecto-SD-Reserva-de-Hoteles/inventario-service/internal/domain"
-	"github.com/darkkings19/Proyecto-SD-Reserva-de-Hoteles/inventario-service/internal/service"
-	pb "github.com/darkkings19/Proyecto-SD-Reserva-de-Hoteles/inventario-service/proto/gen"
+	"github.com/darkkings19/inventario-service/internal/domain"
+	"github.com/darkkings19/inventario-service/internal/service"
+	pb "github.com/darkkings19/inventario-service/proto/gen"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

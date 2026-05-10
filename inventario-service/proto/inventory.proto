@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package inventory;
 
-option go_package = "github.com/darkkings19/Proyecto-SD-Reserva-de-Hoteles/inventario-service/proto/gen;gen";
+option go_package = "github.com/darkkings19/inventario-service/proto/gen;gen";
 
 // InventoryService gestiona la disponibilidad de habitaciones en hoteles.
 // Comunicación exclusivamente gRPC (red interna origen-net).
@@ -29,21 +29,17 @@ message RoomTypeAvailability {
   double precio_noche = 4;
   int32 capacidad = 5;
   int32 stock_disponible = 6; // Unidades disponibles actualmente
+  string room_type_name = 7;
 }
 
 message SearchResponse {
   repeated RoomTypeAvailability rooms = 1;
 }
 
-enum Action {
-  BLOQUEAR = 0;
-  LIBERAR = 1;
-}
-
 message UpdateStockRequest {
   string room_type_id = 1;
   int32 cantidad = 2;
-  Action accion = 3;
+  string accion = 3; // "BLOQUEAR" o "LIBERAR"
 }
 
 message UpdateStockResponse {

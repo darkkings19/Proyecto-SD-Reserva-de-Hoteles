@@ -1,24 +1,20 @@
-FROM golang:1.22-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies
-COPY go.mod go.sum ./
-RUN go mod download
+# Copy only necessary files to avoid scanning old folders
+COPY go.mod go.sum main.go ./
+COPY proto/ ./proto/
 
-# Copy source code
-COPY . .
+# Ensure dependencies are tidy and downloaded
+RUN go mod tidy && go mod download
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o /app/inventory-service ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/inventory-service .
 
-# Use a lightweight alpine image for the final stage
+# Final stage
 FROM alpine:latest
-
 WORKDIR /app
-
-# Copy the binary from the builder stage
 COPY --from=builder /app/inventory-service .
 
-# Run the application
 CMD ["/app/inventory-service"]

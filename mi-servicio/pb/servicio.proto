@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package pb;
+package reservation;
 
 option go_package = "github.com/darkkings19/mi-servicio/pb";
 
