@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # Servicio de Base de Datos PostgreSQL
+  users-db:
+    image: postgres:15-alpine
+    container_name: users-db
+    environment:
+      POSTGRES_DB: ${DB_NAME:-user_db}
+      POSTGRES_USER: ${DB_USER:-sde_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-sde_password}
+    ports:
+      - "5432:5432" # Expuesto para conectarte con DBeaver/PgAdmin desde tu máquina
+    volumes:
+      - users_pgdata:/var/lib/postgresql/data # Persistencia real
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-sde_user} -d ${DB_NAME:-user_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sde-network
+
+  # Microservicio de Usuarios
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    environment:
+      - DB_HOST=users-db # Clave: Se conecta por el nombre del contenedor de BD, no localhost
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-user_db}
+      - DB_USER=${DB_USER:-sde_user}
+      - DB_PASSWORD=${DB_PASSWORD:-sde_password}
+      - GRPC_PORT=9090
+      - SPRING_PROFILES_ACTIVE=dev
+    ports:
+      - "9090:9090" # Puerto gRPC
+    depends_on:
+      users-db:
+        condition: service_healthy # Espera a que la BD esté sana antes de levantar Java
+    networks:
+      - sde-network
+
+volumes:
+  # Declaración del volumen nombrado para persistencia
+  users_pgdata:
+
+networks:
+  # Red virtual aislada para los microservicios
+  sde-network:
+    driver: bridge

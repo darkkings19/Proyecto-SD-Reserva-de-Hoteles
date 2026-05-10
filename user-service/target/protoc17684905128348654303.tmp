@@ -1,7 +1,0 @@
---proto_path=C:\Projects\PROYECTO\user-service\src\main\proto
---proto_path=C:\Projects\PROYECTO\user-service\target\protoc-dependencies\674169646c3ba24da7f8c72a22cb4ee2
---proto_path=C:\Projects\PROYECTO\user-service\target\protoc-dependencies\1c7e1980fd935b7450bb2af8790eecfd
---proto_path=C:\Projects\PROYECTO\user-service\target\protoc-dependencies\da47289cafe72ed386b89fe34f6f6a08
---plugin=protoc-gen-grpc-java=C:\Projects\PROYECTO\user-service\target\protoc-plugins\protoc-gen-grpc-java-1.62.2-windows-x86_64.exe
---grpc-java_out=C:\Projects\PROYECTO\user-service\target\generated-sources\protobuf\grpc-java
-C:\Projects\PROYECTO\user-service\src\main\proto\user.proto
