@@ -19,7 +19,7 @@ def mock_pool():
 
 def test_save_notification(mock_pool):
     repo = PostgresNotificationRepository(mock_pool)
-    notification = Notification(user_id="user1", reservation_id="res1", tipo="CONFIRMACION")
+    notification = Notification(user_id="user1", reservation_id="res1", tipo="CONFIRMACION", email="test@example.com")
     
     repo.save(notification)
     
@@ -28,7 +28,7 @@ def test_save_notification(mock_pool):
     
     assert "INSERT INTO notifications" in sql
     assert "ON CONFLICT (reservation_id, tipo) DO NOTHING" in sql
-    assert params == ("user1", "res1", "CONFIRMACION")
+    assert params == ("user1", "res1", "CONFIRMACION", "test@example.com")
 
 def test_get_by_user(mock_pool):
     repo = PostgresNotificationRepository(mock_pool)
@@ -37,7 +37,7 @@ def test_get_by_user(mock_pool):
     from datetime import datetime
     test_time = datetime(2026, 5, 10, 12, 0, 0)
     mock_pool._mock_cursor.fetchall.return_value = [
-        ("user1", "res1", "CONFIRMACION", test_time)
+        ("user1", "res1", "CONFIRMACION", "test@example.com", test_time)
     ]
     
     notifications = repo.get_by_user("user1")
@@ -45,7 +45,7 @@ def test_get_by_user(mock_pool):
     mock_pool._mock_cursor.execute.assert_called_once()
     sql, params = mock_pool._mock_cursor.execute.call_args[0]
     
-    assert "user_id, reservation_id, tipo, created_at" in sql
+    assert "user_id, reservation_id, tipo, email, created_at" in sql
     assert "FROM notifications" in sql
     assert "WHERE user_id = %s" in sql
     assert "ORDER BY created_at DESC" in sql
@@ -55,6 +55,7 @@ def test_get_by_user(mock_pool):
     assert notifications[0].user_id == "user1"
     assert notifications[0].reservation_id == "res1"
     assert notifications[0].tipo == "CONFIRMACION"
+    assert notifications[0].email == "test@example.com"
     assert notifications[0].created_at == test_time
 
 def test_initialize_schema(mock_pool):

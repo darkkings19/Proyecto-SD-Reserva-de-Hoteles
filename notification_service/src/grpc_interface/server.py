@@ -27,6 +27,7 @@ class NotificationServicer(NotificationServiceServicer):
                 user_id=request.user_id,
                 reservation_id=request.reservation_id,
                 tipo=request.tipo,
+                email=request.email,
             )
             self.repository.save(notification)
             logger.info(

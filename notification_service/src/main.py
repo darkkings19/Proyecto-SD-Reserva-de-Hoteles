@@ -10,9 +10,6 @@ from proto.notifications_pb2_grpc import add_NotificationServiceServicer_to_serv
 from grpc_interface.server import NotificationServicer
 from infrastructure.postgres_repository import PostgresNotificationRepository
 from infrastructure.resend_sender import ResendNotificationSender
-from infrastructure.env_contact_resolver import EnvContactResolver
-from infrastructure.grpc_contact_resolver import GrpcUserContactResolver
-from core.ports import UserContactResolver
 from psycopg_pool import ConnectionPool
 
 def serve():
@@ -44,23 +41,12 @@ def serve():
     except Exception as e:
         logging.error(f"Failed to initialize schema: {e}")
 
-    # ─ Contact Resolver (cómo obtener el email del usuario) ──────────
-    contact_resolver: UserContactResolver
-    user_service_host = os.environ.get("USER_SERVICE_HOST")
-    if user_service_host:
-        contact_resolver = GrpcUserContactResolver(user_service_host=user_service_host)
-        logging.info("Contact resolver: gRPC (UserService at %s)", user_service_host)
-    else:
-        contact_resolver = EnvContactResolver()
-        logging.info("Contact resolver: env var (DEFAULT_USER_EMAIL)")
-
     # ─ Notification Sender (opcional — external channel como email) ──
     sender = None
     resend_api_key = os.environ.get("RESEND_API_KEY")
     if resend_api_key:
         sender = ResendNotificationSender(
             api_key=resend_api_key,
-            contact_resolver=contact_resolver,
             from_email=os.environ.get("RESEND_FROM_EMAIL", "onboarding@resend.dev"),
         )
         logging.info("NotificationSender enabled via Resend")

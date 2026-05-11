@@ -84,6 +84,7 @@ message SendConfirmationRequest {
   string user_id        = 1;
   string reservation_id = 2;
   string tipo          = 3;
+  string email         = 4;
 }
 message SendConfirmationResponse {
   bool success = 1;

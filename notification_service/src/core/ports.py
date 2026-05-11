@@ -19,22 +19,3 @@ class NotificationSender(ABC):
     @abstractmethod
     def send(self, notification: Notification) -> None:
         pass
-
-
-class ContactInfo:
-    """Value object representing a user's contact information."""
-    def __init__(self, email: str) -> None:
-        self.email = email
-
-
-class UserContactResolver(ABC):
-    """Port for resolving a user's contact info (email, phone, etc.) from their user_id.
-
-    The Notification Service receives user_id in gRPC requests but doesn't
-    know the user's email. This port lets each environment resolve it differently:
-    - Dev/testing: read from an env var
-    - Production: call the User Service via gRPC
-    """
-    @abstractmethod
-    def resolve(self, user_id: str) -> ContactInfo:
-        pass
