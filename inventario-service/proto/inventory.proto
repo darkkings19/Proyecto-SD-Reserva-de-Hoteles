@@ -12,6 +12,9 @@ service InventoryService {
 
   // Bloquea o libera stock de un tipo de habitación (llamado por Servicio de Reservas).
   rpc UpdateStock (UpdateStockRequest) returns (UpdateStockResponse);
+
+  // Crea un nuevo hotel
+  rpc CreateHotel (CreateHotelRequest) returns (CreateHotelResponse);
 }
 
 message SearchRequest {
@@ -48,4 +51,17 @@ message UpdateStockRequest {
 
 message UpdateStockResponse {
   bool status = 1;
+}
+
+message CreateHotelRequest {
+  string nombre = 1;
+  string ubicacion = 2;
+  string caracteristicas = 3;
+}
+
+message CreateHotelResponse {
+  string id = 1;
+  string nombre = 2;
+  string ubicacion = 3;
+  string caracteristicas = 4;
 }

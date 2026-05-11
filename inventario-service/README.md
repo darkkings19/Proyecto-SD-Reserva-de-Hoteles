@@ -141,8 +141,8 @@ make test
 ```
 
 Tests incluidos:
-- **Service layer** (6 tests): búsqueda con/sin resultados, bloquear OK, bloquear sin stock, liberar OK, room type no encontrado
-- **Handler layer** (4 tests): mapeo correcto a códigos gRPC (`ResourceExhausted`, `NotFound`, success)
+- **Service layer** (7 tests): búsqueda con/sin resultados, bloquear OK, bloquear sin stock, liberar OK, room type no encontrado, crear hotel OK
+- **Handler layer** (5 tests): mapeo correcto a códigos gRPC (`ResourceExhausted`, `NotFound`, success), crear hotel OK
 
 ---
 
@@ -213,6 +213,24 @@ docker run --rm -it --network origen-net fullstorydev/grpcurl \
 
 **Respuesta esperada:** Error gRPC `RESOURCE_EXHAUSTED`.
 
+### 5. Crear Hotel
+
+```bash
+docker run --rm -it --network origen-net fullstorydev/grpcurl \
+  -plaintext -d '{"nombre": "Hotel VIP", "ubicacion": "Viña del Mar", "caracteristicas": "Frente al mar"}' \
+  inventario-service:50051 inventory.InventoryService/CreateHotel
+```
+
+**Respuesta esperada:**
+```json
+{
+  "id": "e44d32bb-92ac-4158-b649-166299d636cd",
+  "nombre": "Hotel VIP",
+  "ubicacion": "Viña del Mar",
+  "caracteristicas": "Frente al mar"
+}
+```
+
 ---
 
 ## Contratos gRPC
@@ -234,6 +252,14 @@ docker run --rm -it --network origen-net fullstorydev/grpcurl \
 | `room_type_id` | string | UUID del tipo de habitación |
 | `cantidad` | int32 | Unidades a bloquear/liberar |
 | `accion` | enum | `BLOQUEAR` (0) o `LIBERAR` (1) |
+
+### CreateHotel
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `nombre` | string | Nombre del hotel |
+| `ubicacion` | string | Ubicación del hotel |
+| `caracteristicas` | string | Características del hotel |
 
 ### Códigos de Error gRPC
 

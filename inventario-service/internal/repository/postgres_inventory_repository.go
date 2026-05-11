@@ -101,3 +101,11 @@ func (r *postgresInventoryRepository) UpdateStock(ctx context.Context, roomTypeI
 
 	return true, nil
 }
+
+func (r *postgresInventoryRepository) CreateHotel(ctx context.Context, hotel *domain.Hotel) error {
+	err := r.db.WithContext(ctx).Create(hotel).Error
+	if err != nil {
+		return fmt.Errorf("error creating hotel: %w", err)
+	}
+	return nil
+}

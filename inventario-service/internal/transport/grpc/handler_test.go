@@ -29,6 +29,10 @@ func (m *mockRepo) UpdateStock(_ context.Context, _ string, _ int, _ string) (bo
 	return m.updateOk, m.updateErr
 }
 
+func (m *mockRepo) CreateHotel(_ context.Context, _ *domain.Hotel) error {
+	return m.updateErr
+}
+
 // --- Handler Tests ---
 
 func TestHandler_SearchAvailableRooms_OK(t *testing.T) {
@@ -116,5 +120,24 @@ func TestHandler_UpdateStock_Success(t *testing.T) {
 	}
 	if !resp.Status {
 		t.Fatal("expected status=true")
+	}
+}
+
+func TestHandler_CreateHotel_Success(t *testing.T) {
+	repo := &mockRepo{updateOk: true}
+	svc := service.NewInventoryService(repo)
+	h := handler.NewInventoryHandler(svc)
+
+	resp, err := h.CreateHotel(context.Background(), &pb.CreateHotelRequest{
+		Nombre: "Test", Ubicacion: "Lugar", Caracteristicas: "X",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Id == "" {
+		t.Fatal("expected id")
+	}
+	if resp.Nombre != "Test" {
+		t.Errorf("expected Test, got %s", resp.Nombre)
 	}
 }

@@ -375,6 +375,134 @@ func (x *UpdateStockResponse) GetStatus() bool {
 	return false
 }
 
+type CreateHotelRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Nombre          string                 `protobuf:"bytes,1,opt,name=nombre,proto3" json:"nombre,omitempty"`
+	Ubicacion       string                 `protobuf:"bytes,2,opt,name=ubicacion,proto3" json:"ubicacion,omitempty"`
+	Caracteristicas string                 `protobuf:"bytes,3,opt,name=caracteristicas,proto3" json:"caracteristicas,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *CreateHotelRequest) Reset() {
+	*x = CreateHotelRequest{}
+	mi := &file_inventory_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateHotelRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateHotelRequest) ProtoMessage() {}
+
+func (x *CreateHotelRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_inventory_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateHotelRequest.ProtoReflect.Descriptor instead.
+func (*CreateHotelRequest) Descriptor() ([]byte, []int) {
+	return file_inventory_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *CreateHotelRequest) GetNombre() string {
+	if x != nil {
+		return x.Nombre
+	}
+	return ""
+}
+
+func (x *CreateHotelRequest) GetUbicacion() string {
+	if x != nil {
+		return x.Ubicacion
+	}
+	return ""
+}
+
+func (x *CreateHotelRequest) GetCaracteristicas() string {
+	if x != nil {
+		return x.Caracteristicas
+	}
+	return ""
+}
+
+type CreateHotelResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Nombre          string                 `protobuf:"bytes,2,opt,name=nombre,proto3" json:"nombre,omitempty"`
+	Ubicacion       string                 `protobuf:"bytes,3,opt,name=ubicacion,proto3" json:"ubicacion,omitempty"`
+	Caracteristicas string                 `protobuf:"bytes,4,opt,name=caracteristicas,proto3" json:"caracteristicas,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *CreateHotelResponse) Reset() {
+	*x = CreateHotelResponse{}
+	mi := &file_inventory_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateHotelResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateHotelResponse) ProtoMessage() {}
+
+func (x *CreateHotelResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_inventory_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateHotelResponse.ProtoReflect.Descriptor instead.
+func (*CreateHotelResponse) Descriptor() ([]byte, []int) {
+	return file_inventory_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *CreateHotelResponse) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *CreateHotelResponse) GetNombre() string {
+	if x != nil {
+		return x.Nombre
+	}
+	return ""
+}
+
+func (x *CreateHotelResponse) GetUbicacion() string {
+	if x != nil {
+		return x.Ubicacion
+	}
+	return ""
+}
+
+func (x *CreateHotelResponse) GetCaracteristicas() string {
+	if x != nil {
+		return x.Caracteristicas
+	}
+	return ""
+}
+
 var File_inventory_proto protoreflect.FileDescriptor
 
 const file_inventory_proto_rawDesc = "" +
@@ -403,13 +531,23 @@ const file_inventory_proto_rawDesc = "" +
 	"\bcantidad\x18\x02 \x01(\x05R\bcantidad\x12)\n" +
 	"\x06accion\x18\x03 \x01(\x0e2\x11.inventory.ActionR\x06accion\"-\n" +
 	"\x13UpdateStockResponse\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\bR\x06status*#\n" +
+	"\x06status\x18\x01 \x01(\bR\x06status\"t\n" +
+	"\x12CreateHotelRequest\x12\x16\n" +
+	"\x06nombre\x18\x01 \x01(\tR\x06nombre\x12\x1c\n" +
+	"\tubicacion\x18\x02 \x01(\tR\tubicacion\x12(\n" +
+	"\x0fcaracteristicas\x18\x03 \x01(\tR\x0fcaracteristicas\"\x85\x01\n" +
+	"\x13CreateHotelResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
+	"\x06nombre\x18\x02 \x01(\tR\x06nombre\x12\x1c\n" +
+	"\tubicacion\x18\x03 \x01(\tR\tubicacion\x12(\n" +
+	"\x0fcaracteristicas\x18\x04 \x01(\tR\x0fcaracteristicas*#\n" +
 	"\x06Action\x12\f\n" +
 	"\bBLOQUEAR\x10\x00\x12\v\n" +
-	"\aLIBERAR\x10\x012\xad\x01\n" +
+	"\aLIBERAR\x10\x012\xfb\x01\n" +
 	"\x10InventoryService\x12K\n" +
 	"\x14SearchAvailableRooms\x12\x18.inventory.SearchRequest\x1a\x19.inventory.SearchResponse\x12L\n" +
-	"\vUpdateStock\x12\x1d.inventory.UpdateStockRequest\x1a\x1e.inventory.UpdateStockResponseBXZVgithub.com/darkkings19/Proyecto-SD-Reserva-de-Hoteles/inventario-service/proto/gen;genb\x06proto3"
+	"\vUpdateStock\x12\x1d.inventory.UpdateStockRequest\x1a\x1e.inventory.UpdateStockResponse\x12L\n" +
+	"\vCreateHotel\x12\x1d.inventory.CreateHotelRequest\x1a\x1e.inventory.CreateHotelResponseBXZVgithub.com/darkkings19/Proyecto-SD-Reserva-de-Hoteles/inventario-service/proto/gen;genb\x06proto3"
 
 var (
 	file_inventory_proto_rawDescOnce sync.Once
@@ -424,7 +562,7 @@ func file_inventory_proto_rawDescGZIP() []byte {
 }
 
 var file_inventory_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_inventory_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_inventory_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_inventory_proto_goTypes = []any{
 	(Action)(0),                  // 0: inventory.Action
 	(*SearchRequest)(nil),        // 1: inventory.SearchRequest
@@ -432,16 +570,20 @@ var file_inventory_proto_goTypes = []any{
 	(*SearchResponse)(nil),       // 3: inventory.SearchResponse
 	(*UpdateStockRequest)(nil),   // 4: inventory.UpdateStockRequest
 	(*UpdateStockResponse)(nil),  // 5: inventory.UpdateStockResponse
+	(*CreateHotelRequest)(nil),   // 6: inventory.CreateHotelRequest
+	(*CreateHotelResponse)(nil),  // 7: inventory.CreateHotelResponse
 }
 var file_inventory_proto_depIdxs = []int32{
 	2, // 0: inventory.SearchResponse.rooms:type_name -> inventory.RoomTypeAvailability
 	0, // 1: inventory.UpdateStockRequest.accion:type_name -> inventory.Action
 	1, // 2: inventory.InventoryService.SearchAvailableRooms:input_type -> inventory.SearchRequest
 	4, // 3: inventory.InventoryService.UpdateStock:input_type -> inventory.UpdateStockRequest
-	3, // 4: inventory.InventoryService.SearchAvailableRooms:output_type -> inventory.SearchResponse
-	5, // 5: inventory.InventoryService.UpdateStock:output_type -> inventory.UpdateStockResponse
-	4, // [4:6] is the sub-list for method output_type
-	2, // [2:4] is the sub-list for method input_type
+	6, // 4: inventory.InventoryService.CreateHotel:input_type -> inventory.CreateHotelRequest
+	3, // 5: inventory.InventoryService.SearchAvailableRooms:output_type -> inventory.SearchResponse
+	5, // 6: inventory.InventoryService.UpdateStock:output_type -> inventory.UpdateStockResponse
+	7, // 7: inventory.InventoryService.CreateHotel:output_type -> inventory.CreateHotelResponse
+	5, // [5:8] is the sub-list for method output_type
+	2, // [2:5] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
 	2, // [2:2] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name
@@ -458,7 +600,7 @@ func file_inventory_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_inventory_proto_rawDesc), len(file_inventory_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   5,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

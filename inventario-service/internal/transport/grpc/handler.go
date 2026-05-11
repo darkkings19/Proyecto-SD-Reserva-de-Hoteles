@@ -76,3 +76,20 @@ func (h *InventoryHandler) UpdateStock(ctx context.Context, req *pb.UpdateStockR
 
 	return &pb.UpdateStockResponse{Status: success}, nil
 }
+
+func (h *InventoryHandler) CreateHotel(ctx context.Context, req *pb.CreateHotelRequest) (*pb.CreateHotelResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
+	defer cancel()
+
+	hotel, err := h.svc.CreateHotel(ctx, req.Nombre, req.Ubicacion, req.Caracteristicas)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to create hotel: %v", err)
+	}
+
+	return &pb.CreateHotelResponse{
+		Id:              hotel.ID,
+		Nombre:          hotel.Nombre,
+		Ubicacion:       hotel.Ubicacion,
+		Caracteristicas: hotel.Caracteristicas,
+	}, nil
+}

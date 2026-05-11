@@ -31,6 +31,10 @@ func (m *mockInventoryRepository) UpdateStock(ctx context.Context, roomTypeID st
 	return m.updateResult, m.updateErr
 }
 
+func (m *mockInventoryRepository) CreateHotel(ctx context.Context, hotel *domain.Hotel) error {
+	return m.updateErr
+}
+
 // --- Tests ---
 
 func TestSearchAvailableRooms_ReturnsResults(t *testing.T) {
@@ -129,5 +133,21 @@ func TestUpdateStock_LiberarSuccess(t *testing.T) {
 	}
 	if mock.lastAction != "LIBERAR" {
 		t.Errorf("expected action LIBERAR, got %s", mock.lastAction)
+	}
+}
+
+func TestCreateHotel_Success(t *testing.T) {
+	mock := &mockInventoryRepository{}
+	svc := service.NewInventoryService(mock)
+
+	hotel, err := svc.CreateHotel(context.Background(), "Hotel Genial", "Valparaiso", "Con vista al mar")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if hotel.ID == "" {
+		t.Fatal("expected UUID, got empty")
+	}
+	if hotel.Nombre != "Hotel Genial" {
+		t.Errorf("expected nombre Hotel Genial, got %s", hotel.Nombre)
 	}
 }

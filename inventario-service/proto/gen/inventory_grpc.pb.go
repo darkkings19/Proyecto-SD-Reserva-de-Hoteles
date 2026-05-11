@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	InventoryService_SearchAvailableRooms_FullMethodName = "/inventory.InventoryService/SearchAvailableRooms"
 	InventoryService_UpdateStock_FullMethodName          = "/inventory.InventoryService/UpdateStock"
+	InventoryService_CreateHotel_FullMethodName          = "/inventory.InventoryService/CreateHotel"
 )
 
 // InventoryServiceClient is the client API for InventoryService service.
@@ -34,6 +35,8 @@ type InventoryServiceClient interface {
 	SearchAvailableRooms(ctx context.Context, in *SearchRequest, opts ...grpc.CallOption) (*SearchResponse, error)
 	// Bloquea o libera stock de un tipo de habitación (llamado por Servicio de Reservas).
 	UpdateStock(ctx context.Context, in *UpdateStockRequest, opts ...grpc.CallOption) (*UpdateStockResponse, error)
+	// Crea un nuevo hotel
+	CreateHotel(ctx context.Context, in *CreateHotelRequest, opts ...grpc.CallOption) (*CreateHotelResponse, error)
 }
 
 type inventoryServiceClient struct {
@@ -64,6 +67,16 @@ func (c *inventoryServiceClient) UpdateStock(ctx context.Context, in *UpdateStoc
 	return out, nil
 }
 
+func (c *inventoryServiceClient) CreateHotel(ctx context.Context, in *CreateHotelRequest, opts ...grpc.CallOption) (*CreateHotelResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateHotelResponse)
+	err := c.cc.Invoke(ctx, InventoryService_CreateHotel_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // InventoryServiceServer is the server API for InventoryService service.
 // All implementations must embed UnimplementedInventoryServiceServer
 // for forward compatibility.
@@ -75,6 +88,8 @@ type InventoryServiceServer interface {
 	SearchAvailableRooms(context.Context, *SearchRequest) (*SearchResponse, error)
 	// Bloquea o libera stock de un tipo de habitación (llamado por Servicio de Reservas).
 	UpdateStock(context.Context, *UpdateStockRequest) (*UpdateStockResponse, error)
+	// Crea un nuevo hotel
+	CreateHotel(context.Context, *CreateHotelRequest) (*CreateHotelResponse, error)
 	mustEmbedUnimplementedInventoryServiceServer()
 }
 
@@ -90,6 +105,9 @@ func (UnimplementedInventoryServiceServer) SearchAvailableRooms(context.Context,
 }
 func (UnimplementedInventoryServiceServer) UpdateStock(context.Context, *UpdateStockRequest) (*UpdateStockResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateStock not implemented")
+}
+func (UnimplementedInventoryServiceServer) CreateHotel(context.Context, *CreateHotelRequest) (*CreateHotelResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateHotel not implemented")
 }
 func (UnimplementedInventoryServiceServer) mustEmbedUnimplementedInventoryServiceServer() {}
 func (UnimplementedInventoryServiceServer) testEmbeddedByValue()                          {}
@@ -148,6 +166,24 @@ func _InventoryService_UpdateStock_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _InventoryService_CreateHotel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateHotelRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InventoryServiceServer).CreateHotel(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: InventoryService_CreateHotel_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InventoryServiceServer).CreateHotel(ctx, req.(*CreateHotelRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // InventoryService_ServiceDesc is the grpc.ServiceDesc for InventoryService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -162,6 +198,10 @@ var InventoryService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateStock",
 			Handler:    _InventoryService_UpdateStock_Handler,
+		},
+		{
+			MethodName: "CreateHotel",
+			Handler:    _InventoryService_CreateHotel_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
