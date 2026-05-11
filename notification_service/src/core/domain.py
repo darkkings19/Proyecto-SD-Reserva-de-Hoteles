@@ -7,4 +7,5 @@ class Notification:
     user_id: str
     reservation_id: str
     tipo: str
+    email: str
     created_at: Optional[datetime] = None

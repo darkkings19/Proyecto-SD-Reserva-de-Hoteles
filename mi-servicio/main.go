@@ -143,6 +143,7 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 			UserId:        req.UserId,
 			ReservationId: reservationId,
 			Tipo:          "CONFIRMACION",
+			Email:         userRes.User.Email,
 		})
 		if err != nil {
 			log.Printf("[Reservas] Error al enviar notificación: %v", err)

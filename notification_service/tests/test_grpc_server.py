@@ -36,7 +36,8 @@ def test_send_confirmation_success(servicer, repo):
     request = SendConfirmationRequest(
         user_id="user1",
         reservation_id="res1",
-        tipo="CONFIRMACION"
+        tipo="CONFIRMACION",
+        email="test@example.com"
     )
     
     context = Mock(spec=grpc.ServicerContext)
@@ -54,7 +55,8 @@ def test_send_confirmation_exception_handling(servicer):
     request = SendConfirmationRequest(
         user_id="user1",
         reservation_id="res1",
-        tipo="CONFIRMACION"
+        tipo="CONFIRMACION",
+        email="test@example.com"
     )
     
     # Force an exception when saving
@@ -72,7 +74,8 @@ def test_send_confirmation_context_cancelled(servicer, repo):
     request = SendConfirmationRequest(
         user_id="user1",
         reservation_id="res1",
-        tipo="CONFIRMACION"
+        tipo="CONFIRMACION",
+        email="test@example.com"
     )
     
     context = Mock(spec=grpc.ServicerContext)
@@ -89,7 +92,8 @@ def test_send_confirmation_calls_sender(servicer_with_sender, sender):
     request = SendConfirmationRequest(
         user_id="user1",
         reservation_id="res1",
-        tipo="CONFIRMACION"
+        tipo="CONFIRMACION",
+        email="test@example.com"
     )
 
     context = Mock(spec=grpc.ServicerContext)
@@ -109,7 +113,8 @@ def test_send_confirmation_sender_does_not_block_on_error(servicer_with_sender, 
     request = SendConfirmationRequest(
         user_id="user1",
         reservation_id="res1",
-        tipo="CONFIRMACION"
+        tipo="CONFIRMACION",
+        email="test@example.com"
     )
 
     context = Mock(spec=grpc.ServicerContext)

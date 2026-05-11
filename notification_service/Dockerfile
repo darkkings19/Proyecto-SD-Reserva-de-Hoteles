@@ -19,8 +19,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Regenerar los archivos gRPC automáticamente
-RUN python -m grpc_tools.protoc -I. --python_out=src --grpc_python_out=src proto/notifications.proto && \
-    python -m grpc_tools.protoc -I. --python_out=src --grpc_python_out=src proto/user_service.proto
+RUN python -m grpc_tools.protoc -I. --python_out=src --grpc_python_out=src proto/notifications.proto
 
 EXPOSE 50051
 

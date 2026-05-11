@@ -3,7 +3,7 @@ from mocks.mock_repository import MockNotificationRepository
 
 def test_save_and_retrieve_notification():
     repo = MockNotificationRepository()
-    notification = Notification(user_id="1", reservation_id="100", tipo="CONFIRMACION")
+    notification = Notification(user_id="1", reservation_id="100", tipo="CONFIRMACION", email="test@example.com")
     repo.save(notification)
 
     notifications = repo.get_by_user("1")

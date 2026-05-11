@@ -5,7 +5,8 @@ def test_notification_creation():
     notification = Notification(
         user_id="123",
         reservation_id="abc",
-        tipo="CONFIRMACION"
+        tipo="CONFIRMACION",
+        email="test@example.com"
     )
     assert notification.user_id == "123"
     assert notification.reservation_id == "abc"
@@ -18,6 +19,7 @@ def test_notification_with_timestamp():
         user_id="123",
         reservation_id="abc",
         tipo="CONFIRMACION",
+        email="test@example.com",
         created_at=now,
     )
     assert notification.created_at == now
