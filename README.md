@@ -130,7 +130,8 @@ curl -X GET http://localhost:8080/reservations
 
 ### 4.2 Pruebas desde Interfaz Web (Frontend)
 El sistema incluye un frontend web mínimo disponible en:
-*   **URL:** `http://localhost:3000`
+*   **URL:** `http://localhost:3000`(tanto usuarios como reservas)
+*   **URL:** `http://localhost:3000/hoteles.html`(para ver los hoteles y como se van descontando las habitaciones)
 
 **Consideraciones:**
 *   El frontend consume directamente el **API Gateway** expuesto en el puerto `8080`.
