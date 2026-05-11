@@ -1,0 +1,207 @@
+services:
+  # ----------------------------------------
+  # BASES DE DATOS AISLADAS
+  # ----------------------------------------
+  notificaciones_db:
+    image: postgres:15-alpine
+    container_name: notificaciones_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NOTIFICACIONES_NAME:-notificaciones_db}
+    networks:
+      - origen-net
+    volumes:
+      - notificaciones_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NOTIFICACIONES_NAME:-notificaciones_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  reservas_db:
+    image: postgres:15-alpine
+    container_name: reservas_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_RESERVAS_NAME:-reservas_service}
+    networks:
+      - origen-net
+    volumes:
+      - reservas_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_RESERVAS_NAME:-reservas_service}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  inventario_db:
+    image: postgres:15-alpine
+    container_name: inventario_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: inventario_db
+    networks:
+      - origen-net
+    volumes:
+      - inventario_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d inventario_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  users-db:
+    image: postgres:15-alpine
+    container_name: users-db
+    environment:
+      POSTGRES_DB: ${DB_USER_NAME:-user_db}
+      POSTGRES_USER: ${DB_USER:-sde_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-sde_password}
+    networks:
+      - origen-net
+    volumes:
+      - users_pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-sde_user} -d ${DB_USER_NAME:-user_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------
+  # MICROSERVICIOS
+  # ----------------------------------------
+  notification_service:
+    build:
+      context: ./notification_service
+    container_name: notification_service
+    environment:
+      - PORT=50051
+      - DB_HOST=notificaciones_db
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_NAME=${DB_NOTIFICACIONES_NAME:-notificaciones_db}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL:-onboarding@resend.dev}
+      - DEFAULT_USER_EMAIL=${DEFAULT_USER_EMAIL:-e.loren01@ufromail.cl}
+      - USER_SERVICE_HOST=${USER_SERVICE_HOST}
+    networks:
+      - origen-net
+    depends_on:
+      notificaciones_db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  reservation_service:
+    build:
+      context: ./mi-servicio
+    container_name: reservation_service
+    ports:
+      - "50052:50052"
+    environment:
+      - PORT=50052
+      - RESERVAS_DB_HOST=reservas_db
+      - RESERVAS_DB_PORT=5432
+      - RESERVAS_DB_USER=${DB_USER:-postgres}
+      - RESERVAS_DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - RESERVAS_DB_NAME=${DB_RESERVAS_NAME:-reservas_service}
+      - NOTIFICATION_SERVICE_HOST=notification_service:50051
+      - INVENTORY_SERVICE_HOST=inventario_service:50053
+      - USER_SERVICE_HOST=user-service:9090
+    networks:
+      - origen-net
+    depends_on:
+      reservas_db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  inventario_service:
+    build:
+      context: ./inventario-service
+    container_name: inventario_service
+    ports:
+      - "50053:50053"
+    environment:
+      - PORT=50053
+      - DB_HOST=inventario_db
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_NAME=inventario_db
+    networks:
+      - origen-net
+    depends_on:
+      inventario_db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  user-service:
+    build:
+      context: ./user-service
+    container_name: user-service
+    ports:
+      - "9090:9090"
+    environment:
+      - DB_HOST=users-db
+      - DB_PORT=5432
+      - DB_NAME=${DB_USER_NAME:-user_db}
+      - DB_USER=${DB_USER:-sde_user}
+      - DB_PASSWORD=${DB_PASSWORD:-sde_password}
+      - GRPC_PORT=9090
+    networks:
+      - origen-net
+    depends_on:
+      users-db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api_gateway:
+    build:
+      context: ./api-gateway
+    container_name: api_gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - RESERVATION_SERVICE_HOST=reservation_service:50052
+      - NOTIFICATION_SERVICE_HOST=notification_service:50051
+      - INVENTORY_SERVICE_HOST=inventario_service:50053
+      - USER_SERVICE_HOST=user-service:9090
+    networks:
+      - origen-net
+    depends_on:
+      - notification_service
+      - reservation_service
+      - inventario_service
+      - user-service
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: frontend
+    ports:
+      - "3000:80"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+    networks:
+      - origen-net
+    depends_on:
+      - api_gateway
+    restart: unless-stopped
+
+networks:
+  origen-net:
+    driver: bridge
+
+volumes:
+  notificaciones_data:
+  reservas_data:
+  inventario_data:
+  users_pgdata:

@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package pb;
+
+option java_multiple_files = true;
+option java_package = "com.sde.user.grpc";
+option java_outer_classname = "UserProto";
+
+service UserService {
+  rpc GetUser(GetUserRequest) returns (UserResponse);
+}
+
+message GetUserRequest {
+  string id = 1;
+}
+
+message User {
+  string id = 1;
+  string nombre = 2;
+  string email = 3;
+  int32 rol = 4;
+  string telefono = 5;
+  string created_at = 6;
+}
+
+message UserResponse {
+  User user = 1;
+}

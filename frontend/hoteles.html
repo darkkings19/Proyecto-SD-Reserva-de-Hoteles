@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Origen X - Búsqueda de Hoteles</title>
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --primary-hover: #4338CA;
+            --bg: #F9FAFB;
+            --card-bg: #FFFFFF;
+            --text-main: #111827;
+            --text-muted: #6B7280;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: var(--primary);
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .search-box {
+            background-color: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group.full {
+            grid-template-columns: 1fr;
+        }
+
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #D1D5DB;
+            border-radius: 6px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            ring: 2px solid var(--primary);
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .results {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .hotel-card {
+            background-color: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+
+        .hotel-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .hotel-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 0 0 0.5rem 0;
+            color: var(--primary);
+        }
+
+        .hotel-detail {
+            color: var(--text-muted);
+            margin: 0.25rem 0;
+            font-size: 0.95rem;
+        }
+
+        .price {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-top: 1rem;
+        }
+
+        .loader {
+            display: none;
+            text-align: center;
+            margin: 2rem 0;
+            color: var(--text-muted);
+        }
+
+        .error {
+            color: #DC2626;
+            background-color: #FEE2E2;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Origen X - Hoteles</h1>
+
+    <div class="container">
+        <div class="search-box">
+            <div id="error-message" class="error"></div>
+            
+            <div class="form-group">
+                <div>
+                    <label>Fecha de Inicio</label>
+                    <input type="date" id="fecha-inicio" required>
+                </div>
+                <div>
+                    <label>Fecha de Fin</label>
+                    <input type="date" id="fecha-fin" required>
+                </div>
+            </div>
+            
+            <div class="form-group full">
+                <div>
+                    <label>Ubicación (opcional)</label>
+                    <input type="text" id="ubicacion" placeholder="Ej. Lima, Cusco, Playa...">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <div>
+                    <label>Precio Máximo (opcional)</label>
+                    <input type="number" id="precio-max" placeholder="0 = sin límite" value="0">
+                </div>
+                <div>
+                    <label>Capacidad Personas (opcional)</label>
+                    <input type="number" id="capacidad" placeholder="0 = sin límite" value="0">
+                </div>
+            </div>
+            
+            <button onclick="buscarHoteles()">Buscar Habitaciones</button>
+        </div>
+
+        <div id="loader" class="loader">Buscando habitaciones disponibles...</div>
+        
+        <div id="results" class="results">
+            <!-- Los resultados se inyectarán aquí -->
+        </div>
+    </div>
+
+    <script>
+        // Establecer fechas por defecto (hoy y mañana)
+        const hoy = new Date();
+        const mañana = new Date(hoy);
+        mañana.setDate(mañana.getDate() + 1);
+
+        document.getElementById('fecha-inicio').value = hoy.toISOString().split('T')[0];
+        document.getElementById('fecha-fin').value = mañana.toISOString().split('T')[0];
+
+        async function buscarHoteles() {
+            const fechaInicio = document.getElementById('fecha-inicio').value;
+            const fechaFin = document.getElementById('fecha-fin').value;
+            const ubicacion = document.getElementById('ubicacion').value;
+            const precioMax = parseFloat(document.getElementById('precio-max').value) || 0;
+            const capacidad = parseInt(document.getElementById('capacidad').value) || 0;
+
+            const errorEl = document.getElementById('error-message');
+            const loaderEl = document.getElementById('loader');
+            const resultsEl = document.getElementById('results');
+
+            errorEl.style.display = 'none';
+            resultsEl.innerHTML = '';
+            
+            if (!fechaInicio || !fechaFin) {
+                errorEl.textContent = 'Las fechas de inicio y fin son obligatorias.';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            loaderEl.style.display = 'block';
+
+            try {
+                const response = await fetch('http://localhost:8080/api/inventory/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        fecha_inicio: fechaInicio,
+                        fecha_fin: fechaFin,
+                        ubicacion: ubicacion,
+                        precio_max: precioMax,
+                        capacidad: capacidad
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Error al buscar hoteles');
+                }
+
+                loaderEl.style.display = 'none';
+
+                if (!data.rooms || data.rooms.length === 0) {
+                    resultsEl.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted);">No se encontraron habitaciones para esta búsqueda.</p>';
+                    return;
+                }
+
+                data.rooms.forEach(room => {
+                    const card = document.createElement('div');
+                    card.className = 'hotel-card';
+                    card.innerHTML = `
+                        <h3 class="hotel-title">${room.nombre_hotel}</h3>
+                        <p class="hotel-detail"><strong>ID Habitación:</strong> ${room.room_type_id}</p>
+                        <p class="hotel-detail"><strong>Capacidad:</strong> ${room.capacidad} personas</p>
+                        <p class="hotel-detail"><strong>Disponibles:</strong> ${room.stock_disponible} habitaciones</p>
+                        <div class="price">$${room.precio_noche.toFixed(2)} / noche</div>
+                    `;
+                    resultsEl.appendChild(card);
+                });
+
+            } catch (error) {
+                loaderEl.style.display = 'none';
+                errorEl.textContent = 'Error: ' + error.message;
+                errorEl.style.display = 'block';
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>

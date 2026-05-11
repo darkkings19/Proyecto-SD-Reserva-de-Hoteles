@@ -1,0 +1,124 @@
+syntax = "proto3";
+
+package pb;
+
+// ─ Mensajes Reservas ─────────────────────────────────────────────
+message Reservation {
+  string reservation_id = 1;
+  string user_id        = 2;
+  string hotel_id       = 3;
+  string room_type_id   = 4;
+  string status         = 5;
+  string fecha_inicio   = 6;
+  string fecha_fin      = 7;
+  double monto_total    = 8;
+}
+
+message GetReservationRequest  { string reservation_id = 1; }
+message GetReservationResponse { Reservation reservation = 1; }
+
+message ListReservationsRequest {}
+message ListReservationsResponse {
+  repeated Reservation reservations = 1;
+}
+
+message CreateReservationRequest {
+  string user_id        = 1;
+  string hotel_id       = 2;
+  string room_type_id   = 3;
+  string fecha_inicio   = 4;
+  string fecha_fin      = 5;
+}
+message CreateReservationResponse { 
+  string reservation_id = 1;
+  string status         = 2;
+  double monto_total    = 3;
+}
+
+service ReservationService {
+  rpc GetReservation    (GetReservationRequest)    returns (GetReservationResponse);
+  rpc ListReservations  (ListReservationsRequest)  returns (ListReservationsResponse);
+  rpc CreateReservation (CreateReservationRequest) returns (CreateReservationResponse);
+}
+
+// ─ Mensajes Usuarios ─────────────────────────────────────────────
+message GetUserRequest {
+  string id = 1;
+}
+
+message CreateUserRequest {
+    string nombre = 1;
+    string email = 2;
+    string password = 3;
+    int32 rol = 4;
+    string telefono = 5;
+}
+
+message User {
+    string id = 1;
+    string nombre = 2;
+    string email = 3;
+    int32 rol = 4;
+    string telefono = 5;
+    string created_at = 6;
+}
+
+message UserResponse {
+    User user = 1;
+}
+
+service UserService {
+  rpc GetUser(GetUserRequest) returns (UserResponse);
+  rpc CreateUser(CreateUserRequest) returns (UserResponse);
+}
+
+// ─ Mensajes Inventario ─────────────────────────────────────────────
+message SearchRequest {
+  string fecha_inicio = 1;
+  string fecha_fin = 2;
+  string ubicacion = 3;
+  double precio_max = 4;
+  int32 capacidad = 5;
+}
+
+message RoomTypeAvailability {
+  string hotel_id = 1;
+  string nombre_hotel = 2;
+  string room_type_id = 3;
+  double precio_noche = 4;
+  int32 capacidad = 5;
+  int32 stock_disponible = 6;
+  string room_type_name = 7;
+}
+
+message SearchResponse {
+  repeated RoomTypeAvailability rooms = 1;
+}
+
+message UpdateStockRequest {
+  string room_type_id = 1;
+  int32 cantidad = 2;
+  string accion = 3; // "BLOQUEAR" o "LIBERAR"
+}
+
+message UpdateStockResponse {
+  bool status = 1;
+}
+
+service InventoryService {
+  rpc SearchAvailableRooms (SearchRequest) returns (SearchResponse);
+  rpc UpdateStock (UpdateStockRequest) returns (UpdateStockResponse);
+}
+
+// ─ Mensajes Notificaciones ─────────────────────────────────────────────
+message SendConfirmationRequest {
+  string user_id        = 1;
+  string reservation_id = 2;
+  string tipo          = 3;
+}
+message SendConfirmationResponse {
+  bool success = 1;
+}
+service NotificationService {
+  rpc SendConfirmation(SendConfirmationRequest) returns (SendConfirmationResponse);
+}

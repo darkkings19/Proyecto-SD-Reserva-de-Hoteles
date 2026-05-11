@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "github.com/darkkings19/inventario-service/proto/gen;gen";
+
+// InventoryService gestiona la disponibilidad de habitaciones en hoteles.
+// Comunicación exclusivamente gRPC (red interna origen-net).
+service InventoryService {
+  // Busca habitaciones disponibles según filtros de ubicación, precio y capacidad.
+  rpc SearchAvailableRooms (SearchRequest) returns (SearchResponse);
+
+  // Bloquea o libera stock de un tipo de habitación (llamado por Servicio de Reservas).
+  rpc UpdateStock (UpdateStockRequest) returns (UpdateStockResponse);
+}
+
+message SearchRequest {
+  string fecha_inicio = 1; // Formato YYYY-MM-DD
+  string fecha_fin = 2;    // Formato YYYY-MM-DD
+  string ubicacion = 3;    // Ciudad o ubicación (búsqueda parcial ILIKE)
+  double precio_max = 4;   // 0 = sin filtro
+  int32 capacidad = 5;     // 0 = sin filtro
+}
+
+message RoomTypeAvailability {
+  string hotel_id = 1;
+  string nombre_hotel = 2;
+  string room_type_id = 3;
+  double precio_noche = 4;
+  int32 capacidad = 5;
+  int32 stock_disponible = 6; // Unidades disponibles actualmente
+  string room_type_name = 7;
+}
+
+message SearchResponse {
+  repeated RoomTypeAvailability rooms = 1;
+}
+
+message UpdateStockRequest {
+  string room_type_id = 1;
+  int32 cantidad = 2;
+  string accion = 3; // "BLOQUEAR" o "LIBERAR"
+}
+
+message UpdateStockResponse {
+  bool status = 1;
+}
