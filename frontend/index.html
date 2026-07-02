@@ -552,7 +552,23 @@
         localStorage.setItem('user', JSON.stringify(user));
     }
 
-    function logout() {
+    async function logout() {
+        const savedUser = localStorage.getItem('user');
+        if (savedUser) {
+            const user = JSON.parse(savedUser);
+            if (user.access_token) {
+                try {
+                    await fetch(`${API_URL}/logout`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ access_token: user.access_token })
+                    });
+                } catch (error) {
+                    console.error("Error cerrando sesion:", error);
+                }
+            }
+        }
+
         localStorage.removeItem('user');
         document.getElementById('authPanel').style.display = 'block';
         document.getElementById('userProfile').style.display = 'none';

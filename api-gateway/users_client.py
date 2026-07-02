@@ -40,3 +40,17 @@ class UsersClient:
         
         response = stub.AuthenticateUser(request)
         return response
+
+    def logout(self, access_token):
+        channel = grpc.insecure_channel(self.host)
+        stub = servicio_pb2_grpc.UserServiceStub(channel)
+
+        request = servicio_pb2.LogoutRequest(access_token=access_token)
+        return stub.LogoutUser(request)
+
+    def validate_token(self, access_token):
+        channel = grpc.insecure_channel(self.host)
+        stub = servicio_pb2_grpc.UserServiceStub(channel)
+
+        request = servicio_pb2.ValidateTokenRequest(access_token=access_token)
+        return stub.ValidateToken(request)

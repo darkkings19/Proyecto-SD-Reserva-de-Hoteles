@@ -1,5 +1,6 @@
 package com.sde.user.service;
 
+import com.sde.user.dto.AuthenticatedUserDto;
 import com.sde.user.dto.CreateUserDto;
 import com.sde.user.dto.UpdateUserDto;
 import com.sde.user.dto.UserDto;
@@ -18,5 +19,9 @@ public interface UserService {
     
     UserDto updateUser(UUID id, UpdateUserDto updateDto);
     
-    UserDto authenticate(String email, String password);
+    AuthenticatedUserDto authenticate(String email, String password);
+
+    AuthenticatedUserDto validateToken(String accessToken);
+
+    AuthenticatedUserDto logout(String accessToken);
 }

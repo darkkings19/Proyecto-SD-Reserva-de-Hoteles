@@ -19,6 +19,7 @@ COPY --from=build /app/target/*.jar app.jar
 
 # Exponer el puerto gRPC configurado
 EXPOSE 9090
+EXPOSE 8080
 
 # Ejecutar la aplicación
 ENTRYPOINT ["java", "-jar", "app.jar"]

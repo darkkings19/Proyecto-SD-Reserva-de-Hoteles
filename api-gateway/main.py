@@ -45,6 +45,9 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
+class TokenRequest(BaseModel):
+    access_token: str
+
 # --- Dependencias ---
 def get_reservations_client() -> ReservationsClient:
     host = os.environ.get("RESERVATION_SERVICE_HOST", "localhost:50052")
@@ -135,10 +138,41 @@ async def login(req: LoginRequest, client: Annotated[UsersClient, Depends(get_us
         return {
             "id": res.user.id,
             "nombre": res.user.nombre,
-            "email": res.user.email
+            "email": res.user.email,
+            "access_token": res.access_token,
+            "expires_at": res.expires_at
         }
     except Exception as e:
         logging.error(f"Error en login: {e}")
+        raise HTTPException(status_code=401, detail=str(e))
+
+@app.post("/logout")
+async def logout(req: TokenRequest, client: Annotated[UsersClient, Depends(get_users_client)]):
+    try:
+        res = client.logout(access_token=req.access_token)
+        return {
+            "success": res.success,
+            "id": res.user.id,
+            "email": res.user.email,
+            "expires_at": res.expires_at
+        }
+    except Exception as e:
+        logging.error(f"Error en logout: {e}")
+        raise HTTPException(status_code=401, detail=str(e))
+
+@app.post("/validate-token")
+async def validate_token(req: TokenRequest, client: Annotated[UsersClient, Depends(get_users_client)]):
+    try:
+        res = client.validate_token(access_token=req.access_token)
+        return {
+            "success": res.success,
+            "id": res.user.id,
+            "nombre": res.user.nombre,
+            "email": res.user.email,
+            "expires_at": res.expires_at
+        }
+    except Exception as e:
+        logging.error(f"Error validando token: {e}")
         raise HTTPException(status_code=401, detail=str(e))
 
 @app.get("/health")

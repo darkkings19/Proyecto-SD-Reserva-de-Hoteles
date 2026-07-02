@@ -62,6 +62,22 @@ message AuthenticateUserRequest {
 message AuthenticateUserResponse {
     bool success = 1;
     User user = 2;
+    string access_token = 3;
+    string expires_at = 4;
+}
+
+message LogoutRequest {
+    string access_token = 1;
+}
+
+message ValidateTokenRequest {
+    string access_token = 1;
+}
+
+message SessionResponse {
+    bool success = 1;
+    User user = 2;
+    string expires_at = 3;
 }
 
 message User {
@@ -81,6 +97,8 @@ service UserService {
   rpc GetUser(GetUserRequest) returns (UserResponse);
   rpc CreateUser(CreateUserRequest) returns (UserResponse);
   rpc AuthenticateUser(AuthenticateUserRequest) returns (AuthenticateUserResponse);
+  rpc LogoutUser(LogoutRequest) returns (SessionResponse);
+  rpc ValidateToken(ValidateTokenRequest) returns (SessionResponse);
 }
 
 // ─ Mensajes Inventario ─────────────────────────────────────────────

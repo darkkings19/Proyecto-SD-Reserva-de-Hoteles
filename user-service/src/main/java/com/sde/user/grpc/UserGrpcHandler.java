@@ -1,5 +1,6 @@
 package com.sde.user.grpc;
 
+import com.sde.user.dto.AuthenticatedUserDto;
 import com.sde.user.dto.UserDto;
 import com.sde.user.mapper.GrpcUserMapper;
 import com.sde.user.service.UserService;
@@ -8,11 +9,6 @@ import net.devh.boot.grpc.server.service.GrpcService;
 
 import java.util.UUID;
 
-/**
- * Handler/Controlador gRPC.
- * Su única responsabilidad es recibir peticiones protobuf, validaciones básicas de transporte,
- * delegar al UserService y devolver respuestas protobuf.
- */
 @GrpcService
 public class UserGrpcHandler extends UserServiceGrpc.UserServiceImplBase {
 
@@ -27,14 +23,8 @@ public class UserGrpcHandler extends UserServiceGrpc.UserServiceImplBase {
     @Override
     public void createUser(CreateUserRequest request, StreamObserver<UserResponse> responseObserver) {
         validateCreateRequest(request);
-
         UserDto userDto = userService.createUser(grpcMapper.toCreateDto(request));
-
-        UserResponse response = UserResponse.newBuilder()
-                .setUser(grpcMapper.toProtoUser(userDto))
-                .build();
-
-        responseObserver.onNext(response);
+        responseObserver.onNext(UserResponse.newBuilder().setUser(grpcMapper.toProtoUser(userDto)).build());
         responseObserver.onCompleted();
     }
 
@@ -42,12 +32,7 @@ public class UserGrpcHandler extends UserServiceGrpc.UserServiceImplBase {
     public void getUser(GetUserRequest request, StreamObserver<UserResponse> responseObserver) {
         UUID id = parseUUID(request.getId());
         UserDto userDto = userService.getUserById(id);
-
-        UserResponse response = UserResponse.newBuilder()
-                .setUser(grpcMapper.toProtoUser(userDto))
-                .build();
-
-        responseObserver.onNext(response);
+        responseObserver.onNext(UserResponse.newBuilder().setUser(grpcMapper.toProtoUser(userDto)).build());
         responseObserver.onCompleted();
     }
 
@@ -55,36 +40,59 @@ public class UserGrpcHandler extends UserServiceGrpc.UserServiceImplBase {
     public void updateUser(UpdateUserRequest request, StreamObserver<UserResponse> responseObserver) {
         UUID id = parseUUID(request.getId());
         UserDto userDto = userService.updateUser(id, grpcMapper.toUpdateDto(request));
-
-        UserResponse response = UserResponse.newBuilder()
-                .setUser(grpcMapper.toProtoUser(userDto))
-                .build();
-
-        responseObserver.onNext(response);
+        responseObserver.onNext(UserResponse.newBuilder().setUser(grpcMapper.toProtoUser(userDto)).build());
         responseObserver.onCompleted();
     }
 
     @Override
     public void authenticateUser(AuthenticateUserRequest request, StreamObserver<AuthenticateUserResponse> responseObserver) {
-        UserDto userDto = userService.authenticate(request.getEmail(), request.getPassword());
-
+        AuthenticatedUserDto auth = userService.authenticate(request.getEmail(), request.getPassword());
         AuthenticateUserResponse response = AuthenticateUserResponse.newBuilder()
                 .setSuccess(true)
-                .setUser(grpcMapper.toProtoUser(userDto))
+                .setUser(grpcMapper.toProtoUser(auth.user()))
+                .setAccessToken(auth.accessToken())
+                .setExpiresAt(auth.expiresAt().toString())
                 .build();
-
         responseObserver.onNext(response);
         responseObserver.onCompleted();
     }
 
-    // --- Validaciones y utilidades exclusivas de transporte ---
+    @Override
+    public void logoutUser(LogoutRequest request, StreamObserver<SessionResponse> responseObserver) {
+        validateTokenRequest(request.getAccessToken());
+        AuthenticatedUserDto auth = userService.logout(request.getAccessToken());
+        responseObserver.onNext(toSessionResponse(auth));
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void validateToken(ValidateTokenRequest request, StreamObserver<SessionResponse> responseObserver) {
+        validateTokenRequest(request.getAccessToken());
+        AuthenticatedUserDto auth = userService.validateToken(request.getAccessToken());
+        responseObserver.onNext(toSessionResponse(auth));
+        responseObserver.onCompleted();
+    }
+
+    private SessionResponse toSessionResponse(AuthenticatedUserDto auth) {
+        return SessionResponse.newBuilder()
+                .setSuccess(true)
+                .setUser(grpcMapper.toProtoUser(auth.user()))
+                .setExpiresAt(auth.expiresAt().toString())
+                .build();
+    }
 
     private void validateCreateRequest(CreateUserRequest request) {
         if (request.getEmail().isBlank() || request.getPassword().isBlank() || request.getNombre().isBlank()) {
-            throw new IllegalArgumentException("Nombre, email y contraseña son obligatorios");
+            throw new IllegalArgumentException("Nombre, email y contrasena son obligatorios");
         }
         if (request.getRol() == Role.ROLE_UNSPECIFIED) {
-            throw new IllegalArgumentException("Debe especificar un rol de usuario válido (CLIENTE o ADMINISTRADOR)");
+            throw new IllegalArgumentException("Debe especificar un rol de usuario valido");
+        }
+    }
+
+    private void validateTokenRequest(String accessToken) {
+        if (accessToken == null || accessToken.isBlank()) {
+            throw new IllegalArgumentException("El access_token es obligatorio");
         }
     }
 
@@ -92,7 +100,7 @@ public class UserGrpcHandler extends UserServiceGrpc.UserServiceImplBase {
         try {
             return UUID.fromString(id);
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("El ID proporcionado no tiene un formato UUID válido");
+            throw new IllegalArgumentException("El ID proporcionado no tiene un formato UUID valido");
         }
     }
 }

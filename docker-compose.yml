@@ -148,6 +148,7 @@ services:
     container_name: user-service
     ports:
       - "9090:9090"
+      - "8081:8080"
     environment:
       - DB_HOST=users-db
       - DB_PORT=5432
@@ -160,6 +161,38 @@ services:
     depends_on:
       users-db:
         condition: service_healthy
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - origen-net
+    depends_on:
+      - user-service
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.2
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_DEFAULT_THEME=light
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    networks:
+      - origen-net
+    depends_on:
+      - prometheus
     restart: unless-stopped
 
   api_gateway:
@@ -205,3 +238,4 @@ volumes:
   reservas_data:
   inventario_data:
   users_pgdata:
+  grafana_data:
