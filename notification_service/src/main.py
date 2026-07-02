@@ -5,6 +5,7 @@ import signal
 import os
 import time
 from dotenv import load_dotenv
+from prometheus_client import start_http_server
 
 from proto.notifications_pb2_grpc import add_NotificationServiceServicer_to_server
 from grpc_interface.server import NotificationServicer
@@ -14,6 +15,9 @@ from psycopg_pool import ConnectionPool
 
 def serve():
     load_dotenv()
+    metrics_port = int(os.environ.get("METRICS_PORT", "9104"))
+    start_http_server(metrics_port)
+    logging.info("Prometheus metrics exposed on port %s", metrics_port)
     
     db_host = os.environ.get("DB_HOST", "localhost")
     db_port = os.environ.get("DB_PORT", "5432")

@@ -246,6 +246,12 @@ Abrir:
 Origen X / Observabilidad User Service
 ```
 
+Dashboard completo:
+
+```text
+Origen X / Observabilidad Sistema Completo
+```
+
 Que mostrar:
 
 - Estado del `user-service`.
@@ -256,6 +262,7 @@ Que mostrar:
 - Logins exitosos en el periodo seleccionado.
 - Logins fallidos en el periodo seleccionado.
 - Usuarios activos ahora.
+- Reservas creadas, fallos por etapa, busquedas de inventario, stock disponible y notificaciones guardadas en el dashboard completo.
 
 El selector de tiempo de Grafana esta arriba a la derecha. Ahi se puede elegir `Last 5 minutes`, `Today` o un rango personalizado con dia y hora.
 

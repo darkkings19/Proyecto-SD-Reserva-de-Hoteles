@@ -92,6 +92,9 @@ services:
       - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL:-onboarding@resend.dev}
       - DEFAULT_USER_EMAIL=${DEFAULT_USER_EMAIL:-e.loren01@ufromail.cl}
       - USER_SERVICE_HOST=${USER_SERVICE_HOST}
+      - METRICS_PORT=9104
+    ports:
+      - "9104:9104"
     networks:
       - origen-net
     depends_on:
@@ -105,8 +108,10 @@ services:
     container_name: reservation_service
     ports:
       - "50052:50052"
+      - "9102:9102"
     environment:
       - PORT=50052
+      - METRICS_PORT=9102
       - RESERVAS_DB_HOST=reservas_db
       - RESERVAS_DB_PORT=5432
       - RESERVAS_DB_USER=${DB_USER:-postgres}
@@ -128,8 +133,10 @@ services:
     container_name: inventario_service
     ports:
       - "50053:50053"
+      - "9103:9103"
     environment:
       - PORT=50053
+      - METRICS_PORT=9103
       - DB_HOST=inventario_db
       - DB_PORT=5432
       - DB_USER=${DB_USER:-postgres}
@@ -174,6 +181,9 @@ services:
       - origen-net
     depends_on:
       - user-service
+      - reservation_service
+      - inventario_service
+      - notification_service
     restart: unless-stopped
 
   grafana:

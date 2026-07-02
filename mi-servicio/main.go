@@ -6,18 +6,69 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
-	_ "github.com/lib/pq"
 	pb "github.com/darkkings19/mi-servicio/pb"
+	_ "github.com/lib/pq"
 )
+
+var (
+	reservationsCreatedTotal = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "reservations_created_total",
+		Help: "Reservas creadas correctamente.",
+	})
+	reservationsListTotal = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "reservations_list_total",
+		Help: "Listados de reservas consultados correctamente.",
+	})
+	reservationsGetTotal = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "reservations_get_total",
+		Help: "Reservas consultadas por ID correctamente.",
+	})
+	reservationsFailuresTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "reservations_failures_total",
+		Help: "Fallos del flujo de reservas etiquetados por etapa.",
+	}, []string{"stage"})
+	reservationsNotificationsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "reservations_notifications_total",
+		Help: "Resultado de notificaciones disparadas desde reservas.",
+	}, []string{"status"})
+	reservationCreationDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name:    "reservations_create_duration_seconds",
+		Help:    "Duracion de la creacion de reservas.",
+		Buckets: prometheus.DefBuckets,
+	})
+)
+
+func init() {
+	prometheus.MustRegister(
+		reservationsCreatedTotal,
+		reservationsListTotal,
+		reservationsGetTotal,
+		reservationsFailuresTotal,
+		reservationsNotificationsTotal,
+		reservationCreationDuration,
+	)
+	reservationsFailuresTotal.WithLabelValues("user_validation").Add(0)
+	reservationsFailuresTotal.WithLabelValues("inventory_lock").Add(0)
+	reservationsFailuresTotal.WithLabelValues("inventory_no_stock").Add(0)
+	reservationsFailuresTotal.WithLabelValues("database_insert").Add(0)
+	reservationsFailuresTotal.WithLabelValues("list_database").Add(0)
+	reservationsFailuresTotal.WithLabelValues("get_database").Add(0)
+	reservationsFailuresTotal.WithLabelValues("get_not_found").Add(0)
+	reservationsNotificationsTotal.WithLabelValues("success").Add(0)
+	reservationsNotificationsTotal.WithLabelValues("failed").Add(0)
+}
 
 func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
@@ -26,7 +77,17 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-// ─ Servidor de Reservas ─────────────────────────────────────────────
+func startMetricsServer(port string) {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+	go func() {
+		log.Printf("[Reservas] Metricas Prometheus en :%s/metrics", port)
+		if err := http.ListenAndServe(":"+port, mux); err != nil {
+			log.Printf("[Reservas] Error en servidor de metricas: %v", err)
+		}
+	}()
+}
+
 type reservationServer struct {
 	pb.UnimplementedReservationServiceServer
 	userClient         pb.UserServiceClient
@@ -37,29 +98,33 @@ type reservationServer struct {
 
 func (s *reservationServer) GetReservation(ctx context.Context, req *pb.GetReservationRequest) (*pb.GetReservationResponse, error) {
 	log.Printf("[Reservas] Buscando reserva %s...", req.ReservationId)
-	
+
 	query := "SELECT reservation_id, user_id, hotel_id, room_type_id, status, monto_total, fecha_inicio, fecha_fin FROM reservations WHERE reservation_id = $1"
 	var res pb.Reservation
 	err := s.db.QueryRowContext(ctx, query, req.ReservationId).Scan(
-		&res.ReservationId, &res.UserId, &res.HotelId, &res.RoomTypeId, 
+		&res.ReservationId, &res.UserId, &res.HotelId, &res.RoomTypeId,
 		&res.Status, &res.MontoTotal, &res.FechaInicio, &res.FechaFin)
-	
+
 	if err == sql.ErrNoRows {
+		reservationsFailuresTotal.WithLabelValues("get_not_found").Inc()
 		return nil, status.Errorf(codes.NotFound, "reserva no encontrada")
 	} else if err != nil {
+		reservationsFailuresTotal.WithLabelValues("get_database").Inc()
 		return nil, status.Errorf(codes.Internal, "error en base de datos: %v", err)
 	}
 
+	reservationsGetTotal.Inc()
 	return &pb.GetReservationResponse{Reservation: &res}, nil
 }
 
 func (s *reservationServer) ListReservations(ctx context.Context, req *pb.ListReservationsRequest) (*pb.ListReservationsResponse, error) {
 	log.Println("[Reservas] Obteniendo lista de reservas...")
-	
+
 	query := "SELECT reservation_id, user_id, hotel_id, room_type_id, status, monto_total FROM reservations ORDER BY created_at DESC"
 	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
 		log.Printf("[Reservas] Error leyendo base de datos: %v", err)
+		reservationsFailuresTotal.WithLabelValues("list_database").Inc()
 		return nil, status.Errorf(codes.Internal, "error al consultar la base de datos")
 	}
 	defer rows.Close()
@@ -74,55 +139,53 @@ func (s *reservationServer) ListReservations(ctx context.Context, req *pb.ListRe
 		list = append(list, &res)
 	}
 
-	return &pb.ListReservationsResponse{
-		Reservations: list,
-	}, nil
+	reservationsListTotal.Inc()
+	return &pb.ListReservationsResponse{Reservations: list}, nil
 }
 
 func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.CreateReservationRequest) (*pb.CreateReservationResponse, error) {
-	log.Printf("[Reservas] Iniciando creación de reserva para usuario: %s", req.UserId)
+	timer := prometheus.NewTimer(reservationCreationDuration)
+	defer timer.ObserveDuration()
 
-	// 1. Validar Usuario Real en user-service
+	log.Printf("[Reservas] Iniciando creacion de reserva para usuario: %s", req.UserId)
+
 	log.Printf("[Reservas] Validando usuario %s en user-service...", req.UserId)
 	userRes, errUser := s.userClient.GetUser(ctx, &pb.GetUserRequest{Id: req.UserId})
 	if errUser != nil {
 		log.Printf("[Reservas] Error al validar usuario: %v", errUser)
+		reservationsFailuresTotal.WithLabelValues("user_validation").Inc()
 		return nil, status.Errorf(codes.Unauthenticated, "No se pudo validar el usuario: %v", status.Convert(errUser).Message())
 	}
 	log.Printf("[Reservas] Usuario validado: %s", userRes.User.Nombre)
 
-	// 2. Bloquear Inventario REAL en el Servicio de Inventario
 	log.Printf("[Reservas] Solicitando bloqueo de inventario para %s...", req.RoomTypeId)
 	invRes, errInv := s.inventoryClient.UpdateStock(ctx, &pb.UpdateStockRequest{
 		RoomTypeId: req.RoomTypeId,
 		Cantidad:   1,
 		Accion:     "BLOQUEAR",
 	})
-	
 	if errInv != nil {
 		log.Printf("[Reservas] Error al bloquear inventario: %v", errInv)
-		return nil, status.Errorf(codes.ResourceExhausted, "No se pudo asegurar la habitación: %v", status.Convert(errInv).Message())
+		reservationsFailuresTotal.WithLabelValues("inventory_lock").Inc()
+		return nil, status.Errorf(codes.ResourceExhausted, "No se pudo asegurar la habitacion: %v", status.Convert(errInv).Message())
 	}
-
 	if !invRes.Status {
+		reservationsFailuresTotal.WithLabelValues("inventory_no_stock").Inc()
 		return nil, status.Errorf(codes.ResourceExhausted, "No hay stock disponible")
 	}
 	log.Printf("[Reservas] Inventario bloqueado exitosamente para %s", req.RoomTypeId)
 
-	// 3. Crear Reserva en DB (PostgreSQL)
 	reservationId := "res-" + time.Now().Format("20060102150405")
-	montoTotal := 150.50 // Monto simulado (debería venir del inventario o catálogo)
+	montoTotal := 150.50
 
-	query := `INSERT INTO reservations (reservation_id, user_id, hotel_id, room_type_id, fecha_inicio, fecha_fin, status, monto_total) 
+	query := `INSERT INTO reservations (reservation_id, user_id, hotel_id, room_type_id, fecha_inicio, fecha_fin, status, monto_total)
 			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-	
-	_, errDb := s.db.ExecContext(ctx, query, 
-		reservationId, req.UserId, req.HotelId, req.RoomTypeId, 
+	_, errDb := s.db.ExecContext(ctx, query,
+		reservationId, req.UserId, req.HotelId, req.RoomTypeId,
 		req.FechaInicio, req.FechaFin, "CONFIRMADA", montoTotal)
-	
 	if errDb != nil {
 		log.Printf("[Reservas] Error al guardar en PostgreSQL: %v", errDb)
-		// Compensación: Liberar inventario si falló el guardado en DB
+		reservationsFailuresTotal.WithLabelValues("database_insert").Inc()
 		go func() {
 			_, _ = s.inventoryClient.UpdateStock(context.Background(), &pb.UpdateStockRequest{
 				RoomTypeId: req.RoomTypeId,
@@ -132,10 +195,8 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 		}()
 		return nil, status.Errorf(codes.Internal, "error interno al guardar la reserva")
 	}
-
 	log.Printf("[Reservas] Reserva %s creada en PostgreSQL", reservationId)
 
-	// 4. Enviar Notificación al servicio real (fire-and-forget)
 	go func() {
 		notifCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
@@ -143,16 +204,17 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 			UserId:        req.UserId,
 			ReservationId: reservationId,
 			Tipo:          "CONFIRMACION",
-			Email:         userRes.User.Email,
 		})
 		if err != nil {
-			log.Printf("[Reservas] Error al enviar notificación: %v", err)
+			log.Printf("[Reservas] Error al enviar notificacion: %v", err)
+			reservationsNotificationsTotal.WithLabelValues("failed").Inc()
 		} else {
-			log.Printf("[Reservas] Notificación enviada exitosamente")
+			log.Printf("[Reservas] Notificacion enviada exitosamente")
+			reservationsNotificationsTotal.WithLabelValues("success").Inc()
 		}
 	}()
 
-	// 5. Retornar Respuesta
+	reservationsCreatedTotal.Inc()
 	return &pb.CreateReservationResponse{
 		ReservationId: reservationId,
 		Status:        "CONFIRMADA",
@@ -160,38 +222,35 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 	}, nil
 }
 
-// ─ Main ─────────────────────────────────────────────
 func main() {
-	// --- Configuración Base de Datos PostgreSQL ---
+	startMetricsServer(getEnv("METRICS_PORT", "9102"))
+
 	dbHost := getEnv("RESERVAS_DB_HOST", "localhost")
 	dbPort := getEnv("RESERVAS_DB_PORT", "5432")
 	dbUser := getEnv("RESERVAS_DB_USER", "postgres")
 	dbPassword := getEnv("RESERVAS_DB_PASSWORD", "postgres")
 	dbName := getEnv("RESERVAS_DB_NAME", "reservas_service")
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, dbName)
-	
+
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatalf("Error inicializando conexión: %v", err)
+		log.Fatalf("Error inicializando conexion: %v", err)
 	}
 
-	// Reintento de conexión (Ping)
 	for i := 0; i < 15; i++ {
 		err = db.Ping()
 		if err == nil {
-			log.Println("Conexión exitosa a la base de datos de reservas")
+			log.Println("Conexion exitosa a la base de datos de reservas")
 			break
 		}
 		log.Printf("Esperando a la base de datos de reservas (%s)... intento %d/15", dbHost, i+1)
 		time.Sleep(3 * time.Second)
 	}
-	
-	if err != nil { 
-		log.Fatalf("No se pudo conectar a la BD tras 15 intentos: %v", err) 
+	if err != nil {
+		log.Fatalf("No se pudo conectar a la BD tras 15 intentos: %v", err)
 	}
 	defer db.Close()
 
-	// Crear tabla automáticamente
 	createTableQuery := `
 	CREATE TABLE IF NOT EXISTS reservations (
 		reservation_id VARCHAR(50) PRIMARY KEY,
@@ -208,20 +267,25 @@ func main() {
 		log.Fatalf("Error creando tabla: %v", err)
 	}
 
-	// --- Configuración de Clientes gRPC ---
 	userHost := getEnv("USER_SERVICE_HOST", "localhost:9090")
 	userConn, err := grpc.Dial(userHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil { log.Fatalf("Error conectando a Usuarios (%s): %v", userHost, err) }
+	if err != nil {
+		log.Fatalf("Error conectando a Usuarios (%s): %v", userHost, err)
+	}
 	defer userConn.Close()
 
 	invHost := getEnv("INVENTORY_SERVICE_HOST", "localhost:50053")
 	invConn, err := grpc.Dial(invHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil { log.Fatalf("Error conectando a Inventario (%s): %v", invHost, err) }
+	if err != nil {
+		log.Fatalf("Error conectando a Inventario (%s): %v", invHost, err)
+	}
 	defer invConn.Close()
 
 	notifHost := getEnv("NOTIFICATION_SERVICE_HOST", "localhost:50051")
 	notifConn, err := grpc.Dial(notifHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil { log.Fatalf("Error conectando a Notificaciones (%s): %v", notifHost, err) }
+	if err != nil {
+		log.Fatalf("Error conectando a Notificaciones (%s): %v", notifHost, err)
+	}
 	defer notifConn.Close()
 
 	resServer := &reservationServer{
@@ -231,7 +295,6 @@ func main() {
 		db:                 db,
 	}
 
-	// --- Iniciar Servidor ---
 	port := getEnv("PORT", "50052")
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {

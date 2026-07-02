@@ -55,7 +55,7 @@ func (h *InventoryHandler) UpdateStock(ctx context.Context, req *pb.UpdateStockR
 	defer cancel()
 
 	actionStr := "BLOQUEAR"
-	if req.Accion == pb.Action_LIBERAR {
+	if req.Accion == "LIBERAR" || req.Accion == "1" {
 		actionStr = "LIBERAR"
 	}
 

@@ -21,6 +21,6 @@ COPY . .
 # Regenerar los archivos gRPC automáticamente
 RUN python -m grpc_tools.protoc -I. --python_out=src --grpc_python_out=src proto/notifications.proto
 
-EXPOSE 50051
+EXPOSE 50051 9104
 
 CMD ["python", "src/main.py"]

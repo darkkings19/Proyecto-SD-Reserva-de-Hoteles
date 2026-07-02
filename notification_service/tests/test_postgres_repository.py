@@ -62,7 +62,9 @@ def test_initialize_schema(mock_pool):
     repo = PostgresNotificationRepository(mock_pool)
     repo.initialize_schema()
     
-    mock_pool._mock_cursor.execute.assert_called_once()
-    sql = mock_pool._mock_cursor.execute.call_args[0][0]
-    assert "CREATE TABLE IF NOT EXISTS notifications" in sql
-    assert "UNIQUE (reservation_id, tipo)" in sql
+    assert mock_pool._mock_cursor.execute.call_count == 2
+    first_sql = mock_pool._mock_cursor.execute.call_args_list[0][0][0]
+    second_sql = mock_pool._mock_cursor.execute.call_args_list[1][0][0]
+    assert "CREATE TABLE IF NOT EXISTS notifications" in first_sql
+    assert "UNIQUE (reservation_id, tipo)" in first_sql
+    assert "ALTER TABLE notifications ADD COLUMN IF NOT EXISTS email" in second_sql

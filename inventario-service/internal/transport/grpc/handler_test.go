@@ -63,7 +63,7 @@ func TestHandler_UpdateStock_ResourceExhausted(t *testing.T) {
 	_, err := h.UpdateStock(context.Background(), &pb.UpdateStockRequest{
 		RoomTypeId: "rt1",
 		Cantidad:   1,
-		Accion:     pb.Action_BLOQUEAR,
+		Accion:     "BLOQUEAR",
 	})
 	if err == nil {
 		t.Fatal("expected error, got nil")
@@ -86,7 +86,7 @@ func TestHandler_UpdateStock_NotFound(t *testing.T) {
 	_, err := h.UpdateStock(context.Background(), &pb.UpdateStockRequest{
 		RoomTypeId: "nonexistent",
 		Cantidad:   1,
-		Accion:     pb.Action_LIBERAR,
+		Accion:     "LIBERAR",
 	})
 	if err == nil {
 		t.Fatal("expected error, got nil")
@@ -109,7 +109,7 @@ func TestHandler_UpdateStock_Success(t *testing.T) {
 	resp, err := h.UpdateStock(context.Background(), &pb.UpdateStockRequest{
 		RoomTypeId: "rt1",
 		Cantidad:   1,
-		Accion:     pb.Action_BLOQUEAR,
+		Accion:     "BLOQUEAR",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

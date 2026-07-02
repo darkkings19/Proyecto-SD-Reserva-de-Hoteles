@@ -7,3 +7,21 @@ scrape_configs:
     static_configs:
       - targets:
           - user-service:8080
+
+  - job_name: reservation-service
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - reservation_service:9102
+
+  - job_name: inventory-service
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - inventario_service:9103
+
+  - job_name: notification-service
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - notification_service:9104

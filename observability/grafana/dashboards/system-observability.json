@@ -1,0 +1,172 @@
+{
+  "uid": "system-observability",
+  "title": "Observabilidad Sistema Completo",
+  "tags": ["observabilidad", "origen-x", "sistema-completo"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Estado General",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 1
+    },
+    {
+      "type": "stat",
+      "title": "Servicios UP",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "id": 2,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(up{job=~\"user-service|reservation-service|inventory-service|notification-service\"})", "legendFormat": "UP", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "orientation": "auto", "textMode": "auto", "colorMode": "value", "graphMode": "area", "justifyMode": "auto" }
+    },
+    {
+      "type": "timeseries",
+      "title": "Disponibilidad por servicio",
+      "gridPos": { "h": 7, "w": 18, "x": 6, "y": 1 },
+      "id": 3,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "up{job=~\"user-service|reservation-service|inventory-service|notification-service\"}", "legendFormat": "{{job}}", "refId": "A" }]
+    },
+
+    { "type": "row", "title": "Usuarios", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 8 }, "id": 10 },
+    {
+      "type": "stat",
+      "title": "Usuarios creados periodo",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 9 },
+      "id": 11,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "round(increase(users_created_total[$__range]))", "legendFormat": "periodo", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Logins exitosos periodo",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 9 },
+      "id": 12,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "round(increase(users_login_success_total[$__range]))", "legendFormat": "periodo", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Logins fallidos periodo",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 9 },
+      "id": 13,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "round(increase(users_login_failed_total[$__range]))", "legendFormat": "periodo", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Sesiones activas ahora",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 9 },
+      "id": 14,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "users_active_sessions", "legendFormat": "activas", "refId": "A" }]
+    },
+
+    { "type": "row", "title": "Reservas", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 }, "id": 20 },
+    {
+      "type": "stat",
+      "title": "Reservas creadas periodo",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 14 },
+      "id": 21,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "round(increase(reservations_created_total[$__range]))", "legendFormat": "periodo", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Listados periodo",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 14 },
+      "id": 22,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "round(increase(reservations_list_total[$__range]))", "legendFormat": "periodo", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Fallos reservas periodo",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 14 },
+      "id": 23,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "round(sum(increase(reservations_failures_total[$__range])))", "legendFormat": "periodo", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Fallos por etapa",
+      "gridPos": { "h": 7, "w": 6, "x": 18, "y": 14 },
+      "id": 24,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum by (stage) (increase(reservations_failures_total[$__range]))", "legendFormat": "{{stage}}", "refId": "A" }]
+    },
+
+    { "type": "row", "title": "Inventario / Hoteles", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 }, "id": 30 },
+    {
+      "type": "stat",
+      "title": "Busquedas periodo",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 22 },
+      "id": 31,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "round(increase(inventory_search_total[$__range]))", "legendFormat": "periodo", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Busquedas sin resultados periodo",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 22 },
+      "id": 32,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "round(increase(inventory_search_empty_total[$__range]))", "legendFormat": "periodo", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Stock disponible ahora",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 22 },
+      "id": 33,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "inventory_available_rooms", "legendFormat": "stock", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Movimientos de stock",
+      "gridPos": { "h": 7, "w": 6, "x": 18, "y": 22 },
+      "id": 34,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum by (action) (increase(inventory_stock_updates_total[$__range]))", "legendFormat": "{{action}}", "refId": "A" }]
+    },
+
+    { "type": "row", "title": "Notificaciones", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 29 }, "id": 40 },
+    {
+      "type": "stat",
+      "title": "Notificaciones guardadas periodo",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 30 },
+      "id": 41,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "round(sum(increase(notifications_saved_total[$__range])))", "legendFormat": "periodo", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Errores notificaciones periodo",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 30 },
+      "id": 42,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "round(sum(increase(notifications_errors_total[$__range])))", "legendFormat": "periodo", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Notificaciones por tipo",
+      "gridPos": { "h": 7, "w": 6, "x": 12, "y": 30 },
+      "id": 43,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum by (tipo) (increase(notifications_saved_total[$__range]))", "legendFormat": "{{tipo}}", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Duracion notificaciones p95",
+      "gridPos": { "h": 7, "w": 6, "x": 18, "y": 30 },
+      "id": 44,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.95, sum by (le) (rate(notification_send_duration_seconds_bucket[$__rate_interval])))", "legendFormat": "p95", "refId": "A" }]
+    }
+  ]
+}
