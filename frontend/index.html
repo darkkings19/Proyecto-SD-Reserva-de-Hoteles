@@ -7,17 +7,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #f5f7f1;
-            --panel: #ffffff;
-            --panel-soft: #eef3ed;
-            --line: rgba(31, 41, 55, 0.14);
-            --text: #172033;
-            --muted: #64748b;
-            --primary: #0f766e;
-            --primary-strong: #0b5f59;
+            --bg: #0f172a;
+            --panel: #111827;
+            --panel-soft: #1f2937;
+            --line: rgba(255, 255, 255, 0.1);
+            --text: #f8fafc;
+            --muted: #94a3b8;
+            --primary: #4f46e5;
+            --primary-strong: #4338ca;
             --success: #10b981;
-            --danger: #dc2626;
-            --warning: #b45309;
+            --danger: #ef4444;
+            --warning: #f59e0b;
         }
 
         * { box-sizing: border-box; }
@@ -27,8 +27,8 @@
             font-family: "Outfit", system-ui, sans-serif;
             color: var(--text);
             background:
-                linear-gradient(135deg, rgba(15, 118, 110, 0.14), transparent 28rem),
-                linear-gradient(315deg, rgba(194, 65, 12, 0.11), transparent 24rem),
+                radial-gradient(circle at top right, #312e81, transparent 40%),
+                radial-gradient(circle at bottom left, #1e1b4b, transparent 40%),
                 var(--bg);
             min-height: 100vh;
         }
@@ -38,7 +38,7 @@
             top: 0;
             z-index: 20;
             border-bottom: 1px solid var(--line);
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(15, 23, 42, 0.92);
             backdrop-filter: blur(14px);
         }
 
@@ -81,7 +81,7 @@
             border-radius: 8px;
             padding: 0.7rem 0.95rem;
             color: var(--text);
-            background: #eef3ed;
+            background: rgba(255, 255, 255, 0.06);
             font: inherit;
             font-weight: 650;
             cursor: pointer;
@@ -89,8 +89,8 @@
         }
 
         .nav-btn:hover, button:hover {
-            background: #e1e9e0;
-            border-color: rgba(15, 118, 110, 0.24);
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.14);
         }
 
         .nav-btn.active, .primary {
@@ -105,8 +105,8 @@
         }
 
         .danger {
-            background: rgba(220, 38, 38, 0.1);
-            color: #991b1b;
+            background: rgba(239, 68, 68, 0.16);
+            color: #fecaca;
         }
 
         button:disabled {
@@ -154,10 +154,10 @@
 
         .panel, .card {
             border: 1px solid var(--line);
-            background: rgba(255, 255, 255, 0.88);
+            background: rgba(17, 24, 39, 0.82);
             border-radius: 8px;
             padding: 1rem;
-            box-shadow: 0 18px 45px rgba(23, 32, 51, 0.08);
+            box-shadow: 0 18px 45px rgba(0, 0, 0, 0.22);
         }
 
         label {
@@ -172,14 +172,14 @@
             width: 100%;
             border: 1px solid var(--line);
             border-radius: 8px;
-            background: #ffffff;
+            background: rgba(15, 23, 42, 0.8);
             color: var(--text);
             padding: 0.78rem 0.85rem;
             font: inherit;
         }
 
         input:focus {
-            outline: 2px solid rgba(15, 118, 110, 0.22);
+            outline: 2px solid rgba(79, 70, 229, 0.45);
             border-color: var(--primary);
         }
 
@@ -206,7 +206,7 @@
         }
 
         .metric {
-            background: var(--panel-soft);
+            background: rgba(255, 255, 255, 0.055);
             border: 1px solid var(--line);
             border-radius: 8px;
             padding: 0.7rem;
@@ -265,7 +265,7 @@
             border-radius: 999px;
             padding: 0.25rem 0.65rem;
             background: rgba(16, 185, 129, 0.15);
-            color: #047857;
+            color: #86efac;
             font-size: 0.78rem;
             font-weight: 700;
         }
@@ -279,9 +279,9 @@
         }
 
         .message.show { display: block; }
-        .message.error { background: rgba(220, 38, 38, 0.1); color: #991b1b; }
-        .message.success { background: rgba(16, 185, 129, 0.14); color: #047857; }
-        .message.info { background: rgba(2, 132, 199, 0.12); color: #075985; }
+        .message.error { background: rgba(239, 68, 68, 0.16); color: #fecaca; }
+        .message.success { background: rgba(16, 185, 129, 0.16); color: #bbf7d0; }
+        .message.info { background: rgba(59, 130, 246, 0.16); color: #bfdbfe; }
 
         .profile-row {
             border-bottom: 1px solid var(--line);
@@ -335,8 +335,8 @@
             </div>
             <nav>
                 <button class="nav-btn active" data-view="hotelsView">Hoteles</button>
-                <button class="nav-btn" data-view="reservationsView">Mis reservas</button>
-                <button class="nav-btn" data-view="profileView">Perfil</button>
+                <button class="nav-btn auth-only hidden" data-view="reservationsView">Mis reservas</button>
+                <button class="nav-btn auth-only hidden" data-view="profileView">Perfil</button>
                 <button class="nav-btn" data-view="authView" id="authNav">Iniciar sesion</button>
                 <button class="danger hidden" id="logoutBtn">Salir</button>
             </nav>
@@ -418,8 +418,9 @@
                         <span>ID</span>
                         <strong id="profileId">-</strong>
                     </div>
+                    <button class="primary" id="editProfileBtn" type="button">Editar perfil</button>
                 </div>
-                <form class="panel form-grid" id="profileForm">
+                <form class="panel form-grid hidden" id="profileForm">
                     <h2>Editar perfil</h2>
                     <div>
                         <label for="edit_nombre">Nombre</label>
@@ -489,7 +490,8 @@
         const state = {
             user: null,
             rooms: [],
-            activeView: "hotelsView"
+            activeView: "hotelsView",
+            profileEditing: false
         };
 
         const $ = (id) => document.getElementById(id);
@@ -537,9 +539,9 @@
 
         function renderSession() {
             const isLogged = Boolean(state.user);
+            document.querySelectorAll(".auth-only").forEach(btn => btn.classList.toggle("hidden", !isLogged));
             $("logoutBtn").classList.toggle("hidden", !isLogged);
-            $("authNav").textContent = isLogged ? "Perfil" : "Iniciar sesion";
-            $("authNav").dataset.view = isLogged ? "profileView" : "authView";
+            $("authNav").classList.toggle("hidden", isLogged);
             $("sessionLabel").textContent = isLogged
                 ? `Sesion iniciada como ${state.user.nombre}`
                 : "Explora hoteles disponibles";
@@ -548,10 +550,19 @@
                 renderProfile(state.user);
             } else {
                 renderProfile(null);
+                setProfileEditing(false);
+                if (state.activeView === "reservationsView" || state.activeView === "profileView") {
+                    showView("hotelsView");
+                }
             }
         }
 
         function showView(viewId) {
+            if (!state.user && (viewId === "reservationsView" || viewId === "profileView")) {
+                showView("authView");
+                return;
+            }
+
             state.activeView = viewId;
             document.querySelectorAll(".view").forEach(view => view.classList.toggle("active", view.id === viewId));
             document.querySelectorAll(".nav-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.view === viewId));
@@ -559,8 +570,9 @@
             if (viewId === "reservationsView") {
                 loadReservations();
             }
-            if (viewId === "profileView" && !state.user) {
-                setMessage("profileMessage", "Inicia sesion para ver tu perfil.", "info");
+            if (viewId === "profileView") {
+                setProfileEditing(false);
+                loadProfile();
             }
         }
 
@@ -716,6 +728,12 @@
             $("edit_telefono").value = user?.telefono || "";
         }
 
+        function setProfileEditing(isEditing) {
+            state.profileEditing = isEditing;
+            $("profileForm").classList.toggle("hidden", !isEditing);
+            $("editProfileBtn").textContent = isEditing ? "Cancelar edicion" : "Editar perfil";
+        }
+
         async function loadProfile() {
             if (!state.user) return;
             try {
@@ -743,6 +761,7 @@
                     })
                 });
                 saveSession({ ...state.user, ...profile });
+                setProfileEditing(false);
                 setMessage("profileMessage", "Perfil actualizado correctamente.", "success");
             } catch (error) {
                 setMessage("profileMessage", error.message, "error");
@@ -860,6 +879,7 @@
         });
         $("searchBtn").addEventListener("click", searchRooms);
         $("refreshReservationsBtn").addEventListener("click", loadReservations);
+        $("editProfileBtn").addEventListener("click", () => setProfileEditing(!state.profileEditing));
         $("profileForm").addEventListener("submit", updateProfile);
         $("loginForm").addEventListener("submit", login);
         $("registerForm").addEventListener("submit", register);
