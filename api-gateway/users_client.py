@@ -29,6 +29,26 @@ class UsersClient:
         response = stub.CreateUser(request)
         return response.user
 
+    def get_user(self, user_id):
+        channel = grpc.insecure_channel(self.host)
+        stub = servicio_pb2_grpc.UserServiceStub(channel)
+
+        request = servicio_pb2.GetUserRequest(id=user_id)
+        response = stub.GetUser(request)
+        return response.user
+
+    def update_user(self, user_id, nombre, telefono=""):
+        channel = grpc.insecure_channel(self.host)
+        stub = servicio_pb2_grpc.UserServiceStub(channel)
+
+        request = servicio_pb2.UpdateUserRequest(
+            id=user_id,
+            nombre=nombre,
+            telefono=telefono
+        )
+        response = stub.UpdateUser(request)
+        return response.user
+
     def authenticate(self, email, password):
         channel = grpc.insecure_channel(self.host)
         stub = servicio_pb2_grpc.UserServiceStub(channel)

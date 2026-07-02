@@ -20,7 +20,9 @@ message Reservation {
 message GetReservationRequest  { string reservation_id = 1; }
 message GetReservationResponse { Reservation reservation = 1; }
 
-message ListReservationsRequest {}
+message ListReservationsRequest {
+  string user_id = 1;
+}
 message ListReservationsResponse {
   repeated Reservation reservations = 1;
 }

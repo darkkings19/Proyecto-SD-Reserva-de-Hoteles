@@ -19,9 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ReservationService_GetReservation_FullMethodName    = "/reservation.ReservationService/GetReservation"
-	ReservationService_ListReservations_FullMethodName  = "/reservation.ReservationService/ListReservations"
-	ReservationService_CreateReservation_FullMethodName = "/reservation.ReservationService/CreateReservation"
+	ReservationService_GetReservation_FullMethodName    = "/pb.ReservationService/GetReservation"
+	ReservationService_ListReservations_FullMethodName  = "/pb.ReservationService/ListReservations"
+	ReservationService_CreateReservation_FullMethodName = "/pb.ReservationService/CreateReservation"
 )
 
 // ReservationServiceClient is the client API for ReservationService service.
@@ -176,7 +176,7 @@ func _ReservationService_CreateReservation_Handler(srv interface{}, ctx context.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ReservationService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "reservation.ReservationService",
+	ServiceName: "pb.ReservationService",
 	HandlerType: (*ReservationServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -197,14 +197,14 @@ var ReservationService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	UserService_GetUser_FullMethodName = "/com.sde.user.grpc.UserService/GetUser"
+	UserService_GetUser_FullMethodName = "/pb.UserService/GetUser"
 )
 
 // UserServiceClient is the client API for UserService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type UserServiceClient interface {
-	GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*GetUserResponse, error)
+	GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*UserResponse, error)
 }
 
 type userServiceClient struct {
@@ -215,9 +215,9 @@ func NewUserServiceClient(cc grpc.ClientConnInterface) UserServiceClient {
 	return &userServiceClient{cc}
 }
 
-func (c *userServiceClient) GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*GetUserResponse, error) {
+func (c *userServiceClient) GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*UserResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetUserResponse)
+	out := new(UserResponse)
 	err := c.cc.Invoke(ctx, UserService_GetUser_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -229,7 +229,7 @@ func (c *userServiceClient) GetUser(ctx context.Context, in *GetUserRequest, opt
 // All implementations must embed UnimplementedUserServiceServer
 // for forward compatibility.
 type UserServiceServer interface {
-	GetUser(context.Context, *GetUserRequest) (*GetUserResponse, error)
+	GetUser(context.Context, *GetUserRequest) (*UserResponse, error)
 	mustEmbedUnimplementedUserServiceServer()
 }
 
@@ -240,7 +240,7 @@ type UserServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedUserServiceServer struct{}
 
-func (UnimplementedUserServiceServer) GetUser(context.Context, *GetUserRequest) (*GetUserResponse, error) {
+func (UnimplementedUserServiceServer) GetUser(context.Context, *GetUserRequest) (*UserResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetUser not implemented")
 }
 func (UnimplementedUserServiceServer) mustEmbedUnimplementedUserServiceServer() {}
@@ -299,7 +299,7 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	InventoryService_UpdateStock_FullMethodName = "/inventory.InventoryService/UpdateStock"
+	InventoryService_UpdateStock_FullMethodName = "/pb.InventoryService/UpdateStock"
 )
 
 // InventoryServiceClient is the client API for InventoryService service.
@@ -401,7 +401,7 @@ var InventoryService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	NotificationService_SendConfirmation_FullMethodName = "/notifications.NotificationService/SendConfirmation"
+	NotificationService_SendConfirmation_FullMethodName = "/pb.NotificationService/SendConfirmation"
 )
 
 // NotificationServiceClient is the client API for NotificationService service.

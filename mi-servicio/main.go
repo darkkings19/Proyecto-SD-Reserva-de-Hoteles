@@ -120,8 +120,14 @@ func (s *reservationServer) GetReservation(ctx context.Context, req *pb.GetReser
 func (s *reservationServer) ListReservations(ctx context.Context, req *pb.ListReservationsRequest) (*pb.ListReservationsResponse, error) {
 	log.Println("[Reservas] Obteniendo lista de reservas...")
 
-	query := "SELECT reservation_id, user_id, hotel_id, room_type_id, status, monto_total FROM reservations ORDER BY created_at DESC"
-	rows, err := s.db.QueryContext(ctx, query)
+	if req.UserId == "" {
+		log.Println("[Reservas] ListReservations sin user_id: retornando lista vacia")
+		reservationsListTotal.Inc()
+		return &pb.ListReservationsResponse{Reservations: []*pb.Reservation{}}, nil
+	}
+
+	query := "SELECT reservation_id, user_id, hotel_id, room_type_id, status, monto_total FROM reservations WHERE user_id = $1 ORDER BY created_at DESC"
+	rows, err := s.db.QueryContext(ctx, query, req.UserId)
 	if err != nil {
 		log.Printf("[Reservas] Error leyendo base de datos: %v", err)
 		reservationsFailuresTotal.WithLabelValues("list_database").Inc()

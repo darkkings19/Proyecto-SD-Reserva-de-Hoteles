@@ -211,6 +211,7 @@ func (x *GetReservationResponse) GetReservation() *Reservation {
 
 type ListReservationsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -243,6 +244,13 @@ func (x *ListReservationsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListReservationsRequest.ProtoReflect.Descriptor instead.
 func (*ListReservationsRequest) Descriptor() ([]byte, []int) {
 	return file_pb_servicio_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ListReservationsRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
 }
 
 type ListReservationsResponse struct {
@@ -425,7 +433,7 @@ func (x *CreateReservationResponse) GetMontoTotal() float64 {
 	return 0
 }
 
-// ─ Mensajes Usuarios ─────────────────────────────────────────────
+// ─ Mensajes Usuarios (Sincronizados con user-service) ─────────────────────────────────────────────
 type GetUserRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -484,7 +492,7 @@ type User struct {
 
 func (x *User) Reset() {
 	*x = User{}
-	mi := &file_pb_servicio_proto_msgTypes[13]
+	mi := &file_pb_servicio_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -496,7 +504,7 @@ func (x *User) String() string {
 func (*User) ProtoMessage() {}
 
 func (x *User) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_servicio_proto_msgTypes[13]
+	mi := &file_pb_servicio_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -507,8 +515,9 @@ func (x *User) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
+// Deprecated: Use User.ProtoReflect.Descriptor instead.
 func (*User) Descriptor() ([]byte, []int) {
-	return file_pb_servicio_proto_rawDescGZIP(), []int{13}
+	return file_pb_servicio_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *User) GetId() string {
@@ -525,28 +534,56 @@ func (x *User) GetNombre() string {
 	return ""
 }
 
-type GetUserResponse struct {
+func (x *User) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *User) GetRol() int32 {
+	if x != nil {
+		return x.Rol
+	}
+	return 0
+}
+
+func (x *User) GetTelefono() string {
+	if x != nil {
+		return x.Telefono
+	}
+	return ""
+}
+
+func (x *User) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+type UserResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetUserResponse) Reset() {
-	*x = GetUserResponse{}
-	mi := &file_pb_servicio_proto_msgTypes[8]
+func (x *UserResponse) Reset() {
+	*x = UserResponse{}
+	mi := &file_pb_servicio_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetUserResponse) String() string {
+func (x *UserResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetUserResponse) ProtoMessage() {}
+func (*UserResponse) ProtoMessage() {}
 
-func (x *GetUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_servicio_proto_msgTypes[8]
+func (x *UserResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pb_servicio_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -557,18 +594,19 @@ func (x *GetUserResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (*GetUserResponse) Descriptor() ([]byte, []int) {
-	return file_pb_servicio_proto_rawDescGZIP(), []int{8}
+// Deprecated: Use UserResponse.ProtoReflect.Descriptor instead.
+func (*UserResponse) Descriptor() ([]byte, []int) {
+	return file_pb_servicio_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *GetUserResponse) GetUser() *User {
+func (x *UserResponse) GetUser() *User {
 	if x != nil {
 		return x.User
 	}
 	return nil
 }
 
-// ─ Mensajes Inventario ─────────────────────────────────────────────
+// ─ Mensajes Inventario (Sincronizados con inventario-service) ─────────────────────────────────────────────
 type UpdateStockRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RoomTypeId    string                 `protobuf:"bytes,1,opt,name=room_type_id,json=roomTypeId,proto3" json:"room_type_id,omitempty"`
@@ -580,7 +618,7 @@ type UpdateStockRequest struct {
 
 func (x *UpdateStockRequest) Reset() {
 	*x = UpdateStockRequest{}
-	mi := &file_pb_servicio_proto_msgTypes[9]
+	mi := &file_pb_servicio_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -592,7 +630,7 @@ func (x *UpdateStockRequest) String() string {
 func (*UpdateStockRequest) ProtoMessage() {}
 
 func (x *UpdateStockRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_servicio_proto_msgTypes[9]
+	mi := &file_pb_servicio_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -605,7 +643,7 @@ func (x *UpdateStockRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateStockRequest.ProtoReflect.Descriptor instead.
 func (*UpdateStockRequest) Descriptor() ([]byte, []int) {
-	return file_pb_servicio_proto_rawDescGZIP(), []int{9}
+	return file_pb_servicio_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *UpdateStockRequest) GetRoomTypeId() string {
@@ -638,7 +676,7 @@ type UpdateStockResponse struct {
 
 func (x *UpdateStockResponse) Reset() {
 	*x = UpdateStockResponse{}
-	mi := &file_pb_servicio_proto_msgTypes[10]
+	mi := &file_pb_servicio_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -650,7 +688,7 @@ func (x *UpdateStockResponse) String() string {
 func (*UpdateStockResponse) ProtoMessage() {}
 
 func (x *UpdateStockResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_servicio_proto_msgTypes[10]
+	mi := &file_pb_servicio_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -663,7 +701,7 @@ func (x *UpdateStockResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateStockResponse.ProtoReflect.Descriptor instead.
 func (*UpdateStockResponse) Descriptor() ([]byte, []int) {
-	return file_pb_servicio_proto_rawDescGZIP(), []int{10}
+	return file_pb_servicio_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *UpdateStockResponse) GetStatus() bool {
@@ -673,19 +711,20 @@ func (x *UpdateStockResponse) GetStatus() bool {
 	return false
 }
 
-// ─ Mensajes Notificaciones ─────────────────────────────────────────────
+// ─ Mensajes Notificaciones (Sincronizados con notification_service) ─────────────────────────────────────────────
 type SendConfirmationRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	ReservationId string                 `protobuf:"bytes,2,opt,name=reservation_id,json=reservationId,proto3" json:"reservation_id,omitempty"`
 	Tipo          string                 `protobuf:"bytes,3,opt,name=tipo,proto3" json:"tipo,omitempty"`
+	Email         string                 `protobuf:"bytes,4,opt,name=email,proto3" json:"email,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SendConfirmationRequest) Reset() {
 	*x = SendConfirmationRequest{}
-	mi := &file_pb_servicio_proto_msgTypes[11]
+	mi := &file_pb_servicio_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -697,7 +736,7 @@ func (x *SendConfirmationRequest) String() string {
 func (*SendConfirmationRequest) ProtoMessage() {}
 
 func (x *SendConfirmationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_servicio_proto_msgTypes[11]
+	mi := &file_pb_servicio_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -710,7 +749,7 @@ func (x *SendConfirmationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendConfirmationRequest.ProtoReflect.Descriptor instead.
 func (*SendConfirmationRequest) Descriptor() ([]byte, []int) {
-	return file_pb_servicio_proto_rawDescGZIP(), []int{11}
+	return file_pb_servicio_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SendConfirmationRequest) GetUserId() string {
@@ -734,6 +773,13 @@ func (x *SendConfirmationRequest) GetTipo() string {
 	return ""
 }
 
+func (x *SendConfirmationRequest) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
 type SendConfirmationResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
@@ -743,7 +789,7 @@ type SendConfirmationResponse struct {
 
 func (x *SendConfirmationResponse) Reset() {
 	*x = SendConfirmationResponse{}
-	mi := &file_pb_servicio_proto_msgTypes[12]
+	mi := &file_pb_servicio_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -755,7 +801,7 @@ func (x *SendConfirmationResponse) String() string {
 func (*SendConfirmationResponse) ProtoMessage() {}
 
 func (x *SendConfirmationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_servicio_proto_msgTypes[12]
+	mi := &file_pb_servicio_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -768,7 +814,7 @@ func (x *SendConfirmationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendConfirmationResponse.ProtoReflect.Descriptor instead.
 func (*SendConfirmationResponse) Descriptor() ([]byte, []int) {
-	return file_pb_servicio_proto_rawDescGZIP(), []int{12}
+	return file_pb_servicio_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *SendConfirmationResponse) GetSuccess() bool {
@@ -797,8 +843,9 @@ const file_pb_servicio_proto_rawDesc = "" +
 	"\x15GetReservationRequest\x12%\n" +
 	"\x0ereservation_id\x18\x01 \x01(\tR\rreservationId\"K\n" +
 	"\x16GetReservationResponse\x121\n" +
-	"\vreservation\x18\x01 \x01(\v2\x0f.pb.ReservationR\vreservation\"\x19\n" +
-	"\x17ListReservationsRequest\"O\n" +
+	"\vreservation\x18\x01 \x01(\v2\x0f.pb.ReservationR\vreservation\"2\n" +
+	"\x17ListReservationsRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"O\n" +
 	"\x18ListReservationsResponse\x123\n" +
 	"\freservations\x18\x01 \x03(\v2\x0f.pb.ReservationR\freservations\"\xb0\x01\n" +
 	"\x18CreateReservationRequest\x12\x17\n" +
@@ -812,30 +859,39 @@ const file_pb_servicio_proto_rawDesc = "" +
 	"\x0ereservation_id\x18\x01 \x01(\tR\rreservationId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1f\n" +
 	"\vmonto_total\x18\x03 \x01(\x01R\n" +
-	"montoTotal\")\n" +
-	"\x0eGetUserRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"=\n" +
-	"\x0fGetUserResponse\x12\x16\n" +
-	"\x06exists\x18\x01 \x01(\bR\x06exists\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\"j\n" +
+	"montoTotal\" \n" +
+	"\x0eGetUserRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x91\x01\n" +
+	"\x04User\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
+	"\x06nombre\x18\x02 \x01(\tR\x06nombre\x12\x14\n" +
+	"\x05email\x18\x03 \x01(\tR\x05email\x12\x10\n" +
+	"\x03rol\x18\x04 \x01(\x05R\x03rol\x12\x1a\n" +
+	"\btelefono\x18\x05 \x01(\tR\btelefono\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x06 \x01(\tR\tcreatedAt\",\n" +
+	"\fUserResponse\x12\x1c\n" +
+	"\x04user\x18\x01 \x01(\v2\b.pb.UserR\x04user\"j\n" +
 	"\x12UpdateStockRequest\x12 \n" +
 	"\froom_type_id\x18\x01 \x01(\tR\n" +
 	"roomTypeId\x12\x1a\n" +
 	"\bcantidad\x18\x02 \x01(\x05R\bcantidad\x12\x16\n" +
-	"\x06accion\x18\x03 \x01(\tR\x06accion\"/\n" +
-	"\x13UpdateStockResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\"Y\n" +
+	"\x06accion\x18\x03 \x01(\tR\x06accion\"-\n" +
+	"\x13UpdateStockResponse\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\bR\x06status\"\x83\x01\n" +
 	"\x17SendConfirmationRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12%\n" +
-	"\x0ereservation_id\x18\x02 \x01(\tR\rreservationId\"4\n" +
+	"\x0ereservation_id\x18\x02 \x01(\tR\rreservationId\x12\x12\n" +
+	"\x04tipo\x18\x03 \x01(\tR\x04tipo\x12\x14\n" +
+	"\x05email\x18\x04 \x01(\tR\x05email\"4\n" +
 	"\x18SendConfirmationResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess2\xfe\x01\n" +
 	"\x12ReservationService\x12G\n" +
 	"\x0eGetReservation\x12\x19.pb.GetReservationRequest\x1a\x1a.pb.GetReservationResponse\x12M\n" +
 	"\x10ListReservations\x12\x1b.pb.ListReservationsRequest\x1a\x1c.pb.ListReservationsResponse\x12P\n" +
-	"\x11CreateReservation\x12\x1c.pb.CreateReservationRequest\x1a\x1d.pb.CreateReservationResponse2A\n" +
-	"\vUserService\x122\n" +
-	"\aGetUser\x12\x12.pb.GetUserRequest\x1a\x13.pb.GetUserResponse2R\n" +
+	"\x11CreateReservation\x12\x1c.pb.CreateReservationRequest\x1a\x1d.pb.CreateReservationResponse2>\n" +
+	"\vUserService\x12/\n" +
+	"\aGetUser\x12\x12.pb.GetUserRequest\x1a\x10.pb.UserResponse2R\n" +
 	"\x10InventoryService\x12>\n" +
 	"\vUpdateStock\x12\x16.pb.UpdateStockRequest\x1a\x17.pb.UpdateStockResponse2d\n" +
 	"\x13NotificationService\x12M\n" +
@@ -863,29 +919,29 @@ var file_pb_servicio_proto_goTypes = []any{
 	(*CreateReservationRequest)(nil),  // 5: pb.CreateReservationRequest
 	(*CreateReservationResponse)(nil), // 6: pb.CreateReservationResponse
 	(*GetUserRequest)(nil),            // 7: pb.GetUserRequest
-	(*GetUserResponse)(nil),           // 8: pb.GetUserResponse
-	(*UpdateStockRequest)(nil),        // 9: pb.UpdateStockRequest
-	(*UpdateStockResponse)(nil),       // 10: pb.UpdateStockResponse
-	(*SendConfirmationRequest)(nil),   // 11: pb.SendConfirmationRequest
-	(*SendConfirmationResponse)(nil),  // 12: pb.SendConfirmationResponse
-	(*User)(nil),                     // 13: pb.User
+	(*User)(nil),                      // 8: pb.User
+	(*UserResponse)(nil),              // 9: pb.UserResponse
+	(*UpdateStockRequest)(nil),        // 10: pb.UpdateStockRequest
+	(*UpdateStockResponse)(nil),       // 11: pb.UpdateStockResponse
+	(*SendConfirmationRequest)(nil),   // 12: pb.SendConfirmationRequest
+	(*SendConfirmationResponse)(nil),  // 13: pb.SendConfirmationResponse
 }
 var file_pb_servicio_proto_depIdxs = []int32{
 	0,  // 0: pb.GetReservationResponse.reservation:type_name -> pb.Reservation
 	0,  // 1: pb.ListReservationsResponse.reservations:type_name -> pb.Reservation
-	13, // 2: pb.GetUserResponse.user:type_name -> pb.User
+	8,  // 2: pb.UserResponse.user:type_name -> pb.User
 	1,  // 3: pb.ReservationService.GetReservation:input_type -> pb.GetReservationRequest
 	3,  // 4: pb.ReservationService.ListReservations:input_type -> pb.ListReservationsRequest
 	5,  // 5: pb.ReservationService.CreateReservation:input_type -> pb.CreateReservationRequest
 	7,  // 6: pb.UserService.GetUser:input_type -> pb.GetUserRequest
-	9,  // 7: pb.InventoryService.UpdateStock:input_type -> pb.UpdateStockRequest
-	11, // 8: pb.NotificationService.SendConfirmation:input_type -> pb.SendConfirmationRequest
+	10, // 7: pb.InventoryService.UpdateStock:input_type -> pb.UpdateStockRequest
+	12, // 8: pb.NotificationService.SendConfirmation:input_type -> pb.SendConfirmationRequest
 	2,  // 9: pb.ReservationService.GetReservation:output_type -> pb.GetReservationResponse
 	4,  // 10: pb.ReservationService.ListReservations:output_type -> pb.ListReservationsResponse
 	6,  // 11: pb.ReservationService.CreateReservation:output_type -> pb.CreateReservationResponse
-	8,  // 12: pb.UserService.GetUser:output_type -> pb.GetUserResponse
-	10, // 13: pb.InventoryService.UpdateStock:output_type -> pb.UpdateStockResponse
-	12, // 14: pb.NotificationService.SendConfirmation:output_type -> pb.SendConfirmationResponse
+	9,  // 12: pb.UserService.GetUser:output_type -> pb.UserResponse
+	11, // 13: pb.InventoryService.UpdateStock:output_type -> pb.UpdateStockResponse
+	13, // 14: pb.NotificationService.SendConfirmation:output_type -> pb.SendConfirmationResponse
 	9,  // [9:15] is the sub-list for method output_type
 	3,  // [3:9] is the sub-list for method input_type
 	3,  // [3:3] is the sub-list for extension type_name

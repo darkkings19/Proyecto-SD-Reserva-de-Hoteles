@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Annotated
@@ -29,7 +29,7 @@ class SearchRoomsRequest(BaseModel):
     capacidad: int = 0
 
 class CreateReservationRequest(BaseModel):
-    user_id: str
+    user_id: str = ""
     hotel_id: str
     room_type_id: str
     fecha_inicio: str
@@ -39,6 +39,10 @@ class UserRegistrationRequest(BaseModel):
     nombre: str
     email: str
     password: str
+    telefono: str = ""
+
+class UserUpdateRequest(BaseModel):
+    nombre: str
     telefono: str = ""
 
 class LoginRequest(BaseModel):
@@ -56,6 +60,24 @@ def get_reservations_client() -> ReservationsClient:
 def get_users_client() -> UsersClient:
     host = os.environ.get("USER_SERVICE_HOST", "user-service:9090")
     return UsersClient(host)
+
+def _extract_bearer_token(authorization: str | None) -> str:
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Sesion requerida")
+
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(status_code=401, detail="Token invalido")
+
+    return token
+
+def require_session_user(users_client: UsersClient, authorization: str | None):
+    token = _extract_bearer_token(authorization)
+    res = users_client.validate_token(access_token=token)
+    if not res.success or not res.user.id:
+        raise HTTPException(status_code=401, detail="Sesion invalida")
+
+    return res.user
 
 # --- Endpoints de Inventario ---
 @app.post("/api/inventory/search")
@@ -75,9 +97,14 @@ async def search_rooms(req: SearchRoomsRequest):
 
 # --- Endpoints de Reservas ---
 @app.get("/reservations")
-async def list_reservations(client: Annotated[ReservationsClient, Depends(get_reservations_client)]):
+async def list_reservations(
+    client: Annotated[ReservationsClient, Depends(get_reservations_client)],
+    users_client: Annotated[UsersClient, Depends(get_users_client)],
+    authorization: str | None = Header(default=None)
+):
     try:
-        reservations = await client.list_reservations()
+        session_user = require_session_user(users_client, authorization)
+        reservations = await client.list_reservations(user_id=session_user.id)
         return [
             {
                 "reservation_id": r.reservation_id,
@@ -90,13 +117,21 @@ async def list_reservations(client: Annotated[ReservationsClient, Depends(get_re
             for r in reservations
         ]
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         raise HTTPException(status_code=502, detail=str(e))
 
 @app.post("/reservations", status_code=201)
-async def create_reservation(req: CreateReservationRequest, client: Annotated[ReservationsClient, Depends(get_reservations_client)]):
+async def create_reservation(
+    req: CreateReservationRequest,
+    client: Annotated[ReservationsClient, Depends(get_reservations_client)],
+    users_client: Annotated[UsersClient, Depends(get_users_client)],
+    authorization: str | None = Header(default=None)
+):
     try:
+        session_user = require_session_user(users_client, authorization)
         result = await client.create_reservation(
-            user_id=req.user_id,
+            user_id=session_user.id,
             hotel_id=req.hotel_id,
             room_type_id=req.room_type_id,
             fecha_inicio=req.fecha_inicio,
@@ -108,6 +143,8 @@ async def create_reservation(req: CreateReservationRequest, client: Annotated[Re
             "monto_total": result.monto_total,
         }
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         raise HTTPException(status_code=409, detail=str(e))
 
 @app.post("/users", status_code=201)
@@ -126,6 +163,61 @@ async def register_user(req: UserRegistrationRequest, client: Annotated[UsersCli
         }
     except Exception as e:
         logging.error(f"Error registrando usuario: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/users/{user_id}")
+async def get_user(
+    user_id: str,
+    client: Annotated[UsersClient, Depends(get_users_client)],
+    authorization: str | None = Header(default=None)
+):
+    try:
+        session_user = require_session_user(client, authorization)
+        if session_user.id != user_id:
+            raise HTTPException(status_code=403, detail="Solo puedes ver tu propio perfil")
+
+        user = client.get_user(user_id)
+        return {
+            "id": user.id,
+            "nombre": user.nombre,
+            "email": user.email,
+            "telefono": user.telefono,
+            "created_at": user.created_at
+        }
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logging.error(f"Error obteniendo usuario: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.put("/users/{user_id}")
+async def update_user(
+    user_id: str,
+    req: UserUpdateRequest,
+    client: Annotated[UsersClient, Depends(get_users_client)],
+    authorization: str | None = Header(default=None)
+):
+    try:
+        session_user = require_session_user(client, authorization)
+        if session_user.id != user_id:
+            raise HTTPException(status_code=403, detail="Solo puedes editar tu propio perfil")
+
+        user = client.update_user(
+            user_id=user_id,
+            nombre=req.nombre,
+            telefono=req.telefono
+        )
+        return {
+            "id": user.id,
+            "nombre": user.nombre,
+            "email": user.email,
+            "telefono": user.telefono,
+            "created_at": user.created_at
+        }
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logging.error(f"Error actualizando usuario: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/login")
