@@ -1,7 +1,3 @@
-# Guion de video - Bloque Observabilidad - 3 minutos
-
-Este guion esta pensado para un video corto. La idea es hablar claro, mostrar solo lo necesario y no perder tiempo explicando cada detalle tecnico.
-
 ## 0:00 - 0:25 Introduccion
 
 Hola, mi bloque corresponde a observabilidad dentro del sistema Origen X, una aplicacion distribuida para reserva de hoteles.
@@ -30,29 +26,6 @@ Tambien agregue Loki y Promtail para logs, Tempo y OpenTelemetry Collector para 
 
 Ademas, el API Gateway y los servicios propagan contexto de trazas para que una peticion de reserva pueda verse conectada de punta a punta.
 
-## 1:25 - 1:50 Decision tecnica
-
-Una decision tecnica importante fue no quedarme solo con Prometheus. Prometheus sirve para metricas, pero si una reserva falla necesito saber tambien que mensaje dejo cada servicio y por donde paso la peticion.
-
-Por eso agregue Loki para logs y Tempo para trazas. La alternativa descartada era tener solo metricas, porque eso no muestra el flujo completo de un sistema distribuido.
-
-## 1:50 - 2:35 Demostracion
-
-Ahora lo muestro funcionando.
-
-Primero entro al frontend, inicio sesion y creo una reserva.
-
-Luego voy a Grafana.
-
-En el dashboard de tres pilares muestro que existen metricas, logs y trazas.
-
-Despues entro al dashboard de sistema completo y muestro que los servicios principales estan arriba y que hay metricas de usuarios, reservas, inventario y notificaciones.
-
-Luego muestro el dashboard de usuarios, donde se ven usuarios creados, logins exitosos, logins fallidos y sesiones activas.
-
-En Explore selecciono Loki y muestro logs filtrados por servicio, por ejemplo reservas o usuarios.
-
-Finalmente, en Explore selecciono Tempo y abro una traza de `POST /reservations`, donde se ve que la peticion pasa por API Gateway, reservas, usuarios, inventario y notificaciones.
 
 ## 2:35 - 2:55 Fallos y limitaciones
 
@@ -63,13 +36,4 @@ Una limitacion es que esto esta preparado para entorno local con Docker Compose.
 ## 2:55 - 3:00 Cierre
 
 En resumen, el sistema ahora no solo ejecuta reservas, sino que permite observar que ocurre internamente con metricas, logs y trazas distribuidas.
-
-## Orden visual sugerido
-
-1. Frontend: mostrar login o reserva.
-2. Grafana: abrir `Three Pillars Observability`.
-3. Grafana: abrir `System Observability`.
-4. Grafana: abrir `User Service Observability`.
-5. Explore con Loki: mostrar logs por servicio.
-6. Explore con Tempo: abrir traza `POST /reservations`.
 
