@@ -1,6 +1,7 @@
 import grpc
 import os
 import sys
+from opentelemetry.propagate import inject
 
 # Añadir la carpeta de protos al path para que los imports internos de gRPC funcionen
 sys.path.append(os.path.join(os.path.dirname(__file__), 'proto'))
@@ -13,6 +14,11 @@ except ImportError:
 inventory_pb2 = servicio_pb2
 inventory_pb2_grpc = servicio_pb2_grpc
 
+def trace_metadata():
+    carrier = {}
+    inject(carrier)
+    return tuple(carrier.items())
+
 def search_available_rooms(fecha_inicio, fecha_fin, ubicacion="", precio_max=0, capacidad=0):
     host = os.environ.get("INVENTORY_SERVICE_HOST", "localhost:50053")
     channel = grpc.insecure_channel(host)
@@ -24,7 +30,7 @@ def search_available_rooms(fecha_inicio, fecha_fin, ubicacion="", precio_max=0, 
         capacidad=capacidad
     )
     
-    response = stub.SearchAvailableRooms(request)
+    response = stub.SearchAvailableRooms(request, metadata=trace_metadata())
     
     results = []
     for r in response.rooms:

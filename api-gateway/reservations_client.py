@@ -2,6 +2,7 @@ import grpc.aio
 import os
 import sys
 from dataclasses import dataclass
+from opentelemetry.propagate import inject
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'proto'))
 
@@ -16,6 +17,11 @@ class CreateReservationResult:
     status: str
     monto_total: float
 
+def trace_metadata():
+    carrier = {}
+    inject(carrier)
+    return tuple(carrier.items())
+
 class ReservationsClient:
     def __init__(self, host: str):
         self.host = host
@@ -23,7 +29,7 @@ class ReservationsClient:
     async def list_reservations(self):
         async with grpc.aio.insecure_channel(self.host) as channel:
             stub = servicio_pb2_grpc.ReservationServiceStub(channel)
-            response = await stub.ListReservations(servicio_pb2.ListReservationsRequest())
+            response = await stub.ListReservations(servicio_pb2.ListReservationsRequest(), metadata=trace_metadata())
             return response.reservations
 
     async def create_reservation(self, user_id, hotel_id, room_type_id, fecha_inicio, fecha_fin):
@@ -36,7 +42,7 @@ class ReservationsClient:
                 fecha_inicio=fecha_inicio,
                 fecha_fin=fecha_fin
             )
-            response = await stub.CreateReservation(request)
+            response = await stub.CreateReservation(request, metadata=trace_metadata())
             return CreateReservationResult(
                 reservation_id=response.reservation_id,
                 status=response.status,

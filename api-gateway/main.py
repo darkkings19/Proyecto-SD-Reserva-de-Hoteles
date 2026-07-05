@@ -7,10 +7,12 @@ import logging
 
 # Clientes locales
 from inventory_client import search_available_rooms
+from observability import setup_observability
 from reservations_client import ReservationsClient
 from users_client import UsersClient
 
 app = FastAPI(title="Origen X - API Gateway Unificado (Slim)", version="1.1.0")
+setup_observability(app)
 
 app.add_middleware(
     CORSMiddleware,

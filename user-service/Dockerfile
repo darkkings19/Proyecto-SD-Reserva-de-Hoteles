@@ -16,10 +16,11 @@ WORKDIR /app
 
 # Copiar el JAR generado desde la etapa de construcción
 COPY --from=build /app/target/*.jar app.jar
+ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.9.0/opentelemetry-javaagent.jar /app/opentelemetry-javaagent.jar
 
 # Exponer el puerto gRPC configurado
 EXPOSE 9090
 EXPOSE 8080
 
 # Ejecutar la aplicación
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-javaagent:/app/opentelemetry-javaagent.jar", "-jar", "app.jar"]

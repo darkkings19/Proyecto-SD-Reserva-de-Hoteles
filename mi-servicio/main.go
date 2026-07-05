@@ -12,6 +12,13 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -86,6 +93,29 @@ func startMetricsServer(port string) {
 			log.Printf("[Reservas] Error en servidor de metricas: %v", err)
 		}
 	}()
+}
+
+func initTracer(ctx context.Context, serviceName string) (func(context.Context) error, error) {
+	endpoint := getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "otel-collector:4317")
+	exporter, err := otlptracegrpc.New(
+		ctx,
+		otlptracegrpc.WithEndpoint(endpoint),
+		otlptracegrpc.WithInsecure(),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	provider := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName(serviceName),
+		)),
+	)
+	otel.SetTracerProvider(provider)
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+	return provider.Shutdown, nil
 }
 
 type reservationServer struct {
@@ -197,8 +227,9 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 	}
 	log.Printf("[Reservas] Reserva %s creada en PostgreSQL", reservationId)
 
+	notifBaseCtx := context.WithoutCancel(ctx)
 	go func() {
-		notifCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		notifCtx, cancel := context.WithTimeout(notifBaseCtx, 3*time.Second)
 		defer cancel()
 		_, err := s.notificationClient.SendConfirmation(notifCtx, &pb.SendConfirmationRequest{
 			UserId:        req.UserId,
@@ -224,6 +255,16 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 
 func main() {
 	startMetricsServer(getEnv("METRICS_PORT", "9102"))
+	tracerShutdown, err := initTracer(context.Background(), getEnv("OTEL_SERVICE_NAME", "reservation-service"))
+	if err != nil {
+		log.Printf("[Reservas] OpenTelemetry no pudo inicializarse: %v", err)
+	} else {
+		defer func() {
+			if err := tracerShutdown(context.Background()); err != nil {
+				log.Printf("[Reservas] Error cerrando OpenTelemetry: %v", err)
+			}
+		}()
+	}
 
 	dbHost := getEnv("RESERVAS_DB_HOST", "localhost")
 	dbPort := getEnv("RESERVAS_DB_PORT", "5432")
@@ -268,21 +309,21 @@ func main() {
 	}
 
 	userHost := getEnv("USER_SERVICE_HOST", "localhost:9090")
-	userConn, err := grpc.Dial(userHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	userConn, err := grpc.Dial(userHost, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
 	if err != nil {
 		log.Fatalf("Error conectando a Usuarios (%s): %v", userHost, err)
 	}
 	defer userConn.Close()
 
 	invHost := getEnv("INVENTORY_SERVICE_HOST", "localhost:50053")
-	invConn, err := grpc.Dial(invHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	invConn, err := grpc.Dial(invHost, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
 	if err != nil {
 		log.Fatalf("Error conectando a Inventario (%s): %v", invHost, err)
 	}
 	defer invConn.Close()
 
 	notifHost := getEnv("NOTIFICATION_SERVICE_HOST", "localhost:50051")
-	notifConn, err := grpc.Dial(notifHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	notifConn, err := grpc.Dial(notifHost, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
 	if err != nil {
 		log.Fatalf("Error conectando a Notificaciones (%s): %v", notifHost, err)
 	}
@@ -301,7 +342,7 @@ func main() {
 		log.Fatalf("No se pudo escuchar en :%s: %v", port, err)
 	}
 
-	srv := grpc.NewServer()
+	srv := grpc.NewServer(grpc.StatsHandler(otelgrpc.NewServerHandler()))
 	pb.RegisterReservationServiceServer(srv, resServer)
 	reflection.Register(srv)
 

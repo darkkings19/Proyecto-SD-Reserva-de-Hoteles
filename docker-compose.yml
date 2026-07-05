@@ -93,6 +93,8 @@ services:
       - DEFAULT_USER_EMAIL=${DEFAULT_USER_EMAIL:-e.loren01@ufromail.cl}
       - USER_SERVICE_HOST=${USER_SERVICE_HOST}
       - METRICS_PORT=9104
+      - OTEL_SERVICE_NAME=notification-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
     ports:
       - "9104:9104"
     networks:
@@ -120,6 +122,8 @@ services:
       - NOTIFICATION_SERVICE_HOST=notification_service:50051
       - INVENTORY_SERVICE_HOST=inventario_service:50053
       - USER_SERVICE_HOST=user-service:9090
+      - OTEL_SERVICE_NAME=reservation-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
     networks:
       - origen-net
     depends_on:
@@ -142,6 +146,8 @@ services:
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
       - DB_NAME=inventario_db
+      - OTEL_SERVICE_NAME=inventory-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
     networks:
       - origen-net
     depends_on:
@@ -163,6 +169,12 @@ services:
       - DB_USER=${DB_USER:-sde_user}
       - DB_PASSWORD=${DB_PASSWORD:-sde_password}
       - GRPC_PORT=9090
+      - OTEL_SERVICE_NAME=user-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=none
+      - OTEL_LOGS_EXPORTER=none
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
     networks:
       - origen-net
     depends_on:
@@ -186,6 +198,65 @@ services:
       - notification_service
     restart: unless-stopped
 
+  loki:
+    image: grafana/loki:2.9.10
+    container_name: loki
+    command: -config.file=/etc/loki/loki.yml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./observability/loki.yml:/etc/loki/loki.yml:ro
+      - loki_data:/loki
+    networks:
+      - origen-net
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.2.1
+    container_name: promtail
+    command: -config.file=/etc/promtail/promtail.yml
+    environment:
+      - DOCKER_API_VERSION=1.44
+    volumes:
+      - ./observability/promtail.yml:/etc/promtail/promtail.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - origen-net
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    container_name: tempo
+    user: "0"
+    command: -config.file=/etc/tempo/tempo.yml
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      - ./observability/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo_data:/tmp/tempo
+    networks:
+      - origen-net
+    restart: unless-stopped
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    container_name: otel-collector
+    command: ["--config=/etc/otelcol/otel-collector.yml"]
+    ports:
+      - "4319:4317"
+      - "4320:4318"
+    volumes:
+      - ./observability/otel-collector.yml:/etc/otelcol/otel-collector.yml:ro
+    networks:
+      - origen-net
+    depends_on:
+      - tempo
+    restart: unless-stopped
+
   grafana:
     image: grafana/grafana:11.2.2
     container_name: grafana
@@ -203,6 +274,8 @@ services:
       - origen-net
     depends_on:
       - prometheus
+      - loki
+      - tempo
     restart: unless-stopped
 
   api_gateway:
@@ -216,6 +289,8 @@ services:
       - NOTIFICATION_SERVICE_HOST=notification_service:50051
       - INVENTORY_SERVICE_HOST=inventario_service:50053
       - USER_SERVICE_HOST=user-service:9090
+      - OTEL_SERVICE_NAME=api-gateway
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
     networks:
       - origen-net
     depends_on:
@@ -249,3 +324,5 @@ volumes:
   inventario_data:
   users_pgdata:
   grafana_data:
+  loki_data:
+  tempo_data:

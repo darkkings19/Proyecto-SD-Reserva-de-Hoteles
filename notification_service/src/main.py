@@ -12,9 +12,11 @@ from grpc_interface.server import NotificationServicer
 from infrastructure.postgres_repository import PostgresNotificationRepository
 from infrastructure.resend_sender import ResendNotificationSender
 from psycopg_pool import ConnectionPool
+from tracing import setup_tracing
 
 def serve():
     load_dotenv()
+    setup_tracing()
     metrics_port = int(os.environ.get("METRICS_PORT", "9104"))
     start_http_server(metrics_port)
     logging.info("Prometheus metrics exposed on port %s", metrics_port)

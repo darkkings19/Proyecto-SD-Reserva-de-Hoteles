@@ -14,6 +14,13 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
@@ -89,6 +96,29 @@ func startMetricsServer(port string) {
 			log.Printf("[Inventario] Error en servidor de metricas: %v", err)
 		}
 	}()
+}
+
+func initTracer(ctx context.Context, serviceName string) (func(context.Context) error, error) {
+	endpoint := getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "otel-collector:4317")
+	exporter, err := otlptracegrpc.New(
+		ctx,
+		otlptracegrpc.WithEndpoint(endpoint),
+		otlptracegrpc.WithInsecure(),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	provider := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName(serviceName),
+		)),
+	)
+	otel.SetTracerProvider(provider)
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+	return provider.Shutdown, nil
 }
 
 type inventoryServer struct {
@@ -222,6 +252,16 @@ func (s *inventoryServer) initializeDB() {
 
 func main() {
 	startMetricsServer(getEnv("METRICS_PORT", "9103"))
+	tracerShutdown, err := initTracer(context.Background(), getEnv("OTEL_SERVICE_NAME", "inventory-service"))
+	if err != nil {
+		log.Printf("[Inventario] OpenTelemetry no pudo inicializarse: %v", err)
+	} else {
+		defer func() {
+			if err := tracerShutdown(context.Background()); err != nil {
+				log.Printf("[Inventario] Error cerrando OpenTelemetry: %v", err)
+			}
+		}()
+	}
 
 	dbHost := getEnv("DB_HOST", "localhost")
 	dbPort := getEnv("DB_PORT", "5432")
@@ -260,7 +300,7 @@ func main() {
 		log.Fatalf("Error al escuchar: %v", err)
 	}
 
-	s := grpc.NewServer()
+	s := grpc.NewServer(grpc.StatsHandler(otelgrpc.NewServerHandler()))
 	pb.RegisterInventoryServiceServer(s, server)
 	reflection.Register(s)
 

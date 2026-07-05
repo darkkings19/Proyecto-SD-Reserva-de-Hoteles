@@ -1,6 +1,7 @@
 import grpc
 import os
 import sys
+from opentelemetry.propagate import inject
 
 # Añadir la carpeta de protos al path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'proto'))
@@ -9,6 +10,11 @@ try:
     import servicio_pb2, servicio_pb2_grpc
 except ImportError:
     from proto import servicio_pb2, servicio_pb2_grpc
+
+def trace_metadata():
+    carrier = {}
+    inject(carrier)
+    return tuple(carrier.items())
 
 class UsersClient:
     def __init__(self, host: str):
@@ -26,7 +32,7 @@ class UsersClient:
             telefono=telefono
         )
         
-        response = stub.CreateUser(request)
+        response = stub.CreateUser(request, metadata=trace_metadata())
         return response.user
 
     def authenticate(self, email, password):
@@ -38,7 +44,7 @@ class UsersClient:
             password=password
         )
         
-        response = stub.AuthenticateUser(request)
+        response = stub.AuthenticateUser(request, metadata=trace_metadata())
         return response
 
     def logout(self, access_token):
@@ -46,11 +52,11 @@ class UsersClient:
         stub = servicio_pb2_grpc.UserServiceStub(channel)
 
         request = servicio_pb2.LogoutRequest(access_token=access_token)
-        return stub.LogoutUser(request)
+        return stub.LogoutUser(request, metadata=trace_metadata())
 
     def validate_token(self, access_token):
         channel = grpc.insecure_channel(self.host)
         stub = servicio_pb2_grpc.UserServiceStub(channel)
 
         request = servicio_pb2.ValidateTokenRequest(access_token=access_token)
-        return stub.ValidateToken(request)
+        return stub.ValidateToken(request, metadata=trace_metadata())
