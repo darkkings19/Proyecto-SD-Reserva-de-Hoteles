@@ -26,10 +26,13 @@ class ReservationsClient:
     def __init__(self, host: str):
         self.host = host
 
-    async def list_reservations(self):
+    async def list_reservations(self, user_id=""):
         async with grpc.aio.insecure_channel(self.host) as channel:
             stub = servicio_pb2_grpc.ReservationServiceStub(channel)
-            response = await stub.ListReservations(servicio_pb2.ListReservationsRequest(), metadata=trace_metadata())
+            response = await stub.ListReservations(
+                servicio_pb2.ListReservationsRequest(user_id=user_id),
+                metadata=trace_metadata(),
+            )
             return response.reservations
 
     async def create_reservation(self, user_id, hotel_id, room_type_id, fecha_inicio, fecha_fin):

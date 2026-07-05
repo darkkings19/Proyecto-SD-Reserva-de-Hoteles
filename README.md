@@ -119,19 +119,18 @@ curl -X POST http://localhost:8080/reservations \
      -d '{"user_id": "ID_DEL_USUARIO", "hotel_id": "HOTEL_1", "room_type_id": "ROOM_1", "fecha_inicio": "2026-06-01", "fecha_fin": "2026-06-10"}'
 ```
 
-**5. Listar reservas:**
+**5. Listar reservas del usuario logueado:**
 ```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/reservations" -Method Get
+Invoke-RestMethod -Uri "http://localhost:8080/reservations" -Method Get -Headers @{ Authorization = "Bearer <ACCESS_TOKEN>" }
 ```
 
 ```bash
-curl -X GET http://localhost:8080/reservations
+curl -H "Authorization: Bearer <ACCESS_TOKEN>" http://localhost:8080/reservations
 ```
 
 ### 4.2 Pruebas desde Interfaz Web (Frontend)
 El sistema incluye un frontend web mínimo disponible en:
 *   **URL:** `http://localhost:3000`(tanto usuarios como reservas)
-*   **URL:** `http://localhost:3000/hoteles.html`(para ver los hoteles y como se van descontando las habitaciones)
 
 **Consideraciones:**
 *   El frontend consume directamente el **API Gateway** expuesto en el puerto `8080`.

@@ -17,7 +17,9 @@ message Reservation {
 message GetReservationRequest  { string reservation_id = 1; }
 message GetReservationResponse { Reservation reservation = 1; }
 
-message ListReservationsRequest {}
+message ListReservationsRequest {
+  string user_id = 1;
+}
 message ListReservationsResponse {
   repeated Reservation reservations = 1;
 }
@@ -52,6 +54,12 @@ message CreateUserRequest {
     string password = 3;
     int32 rol = 4;
     string telefono = 5;
+}
+
+message UpdateUserRequest {
+    string id = 1;
+    string nombre = 2;
+    string telefono = 3;
 }
 
 message AuthenticateUserRequest {
@@ -96,6 +104,7 @@ message UserResponse {
 service UserService {
   rpc GetUser(GetUserRequest) returns (UserResponse);
   rpc CreateUser(CreateUserRequest) returns (UserResponse);
+  rpc UpdateUser(UpdateUserRequest) returns (UserResponse);
   rpc AuthenticateUser(AuthenticateUserRequest) returns (AuthenticateUserResponse);
   rpc LogoutUser(LogoutRequest) returns (SessionResponse);
   rpc ValidateToken(ValidateTokenRequest) returns (SessionResponse);
