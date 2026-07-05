@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"fmt"
 	"log"
@@ -27,6 +28,25 @@ import (
 
 	pb "github.com/darkkings19/mi-servicio/pb"
 	_ "github.com/lib/pq"
+)
+
+const (
+	sagaStarted                          = "STARTED"
+	sagaUserValidated                    = "USER_VALIDATED"
+	sagaStockLocked                      = "STOCK_LOCKED"
+	sagaReservationCreated               = "RESERVATION_CREATED"
+	sagaNotificationDispatching          = "NOTIFICATION_DISPATCHING"
+	sagaCompleted                        = "COMPLETED"
+	sagaCompletedWithNotificationFailure = "COMPLETED_WITH_NOTIFICATION_FAILURE"
+	sagaCompensating                     = "COMPENSATING"
+	sagaCompensated                      = "COMPENSATED"
+	sagaCompensationFailed               = "COMPENSATION_FAILED"
+	sagaFailed                           = "FAILED"
+
+	sagaUserValidationFailed    = "USER_VALIDATION_FAILED"
+	sagaStockLockFailed         = "STOCK_LOCK_FAILED"
+	sagaStockUnavailable        = "STOCK_UNAVAILABLE"
+	sagaReservationInsertFailed = "RESERVATION_INSERT_FAILED"
 )
 
 var (
@@ -55,6 +75,14 @@ var (
 		Help:    "Duracion de la creacion de reservas.",
 		Buckets: prometheus.DefBuckets,
 	})
+	reservationSagaTransitionsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "reservation_saga_transitions_total",
+		Help: "Transiciones registradas por la saga de reservas.",
+	}, []string{"state", "result"})
+	reservationSagaCompensationsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "reservation_saga_compensations_total",
+		Help: "Compensaciones de inventario ejecutadas por la saga de reservas.",
+	}, []string{"result"})
 )
 
 func init() {
@@ -65,6 +93,8 @@ func init() {
 		reservationsFailuresTotal,
 		reservationsNotificationsTotal,
 		reservationCreationDuration,
+		reservationSagaTransitionsTotal,
+		reservationSagaCompensationsTotal,
 	)
 	reservationsFailuresTotal.WithLabelValues("user_validation").Add(0)
 	reservationsFailuresTotal.WithLabelValues("inventory_lock").Add(0)
@@ -75,6 +105,24 @@ func init() {
 	reservationsFailuresTotal.WithLabelValues("get_not_found").Add(0)
 	reservationsNotificationsTotal.WithLabelValues("success").Add(0)
 	reservationsNotificationsTotal.WithLabelValues("failed").Add(0)
+	for _, state := range []string{
+		sagaStarted,
+		sagaUserValidated,
+		sagaStockLocked,
+		sagaReservationCreated,
+		sagaNotificationDispatching,
+		sagaCompleted,
+		sagaCompletedWithNotificationFailure,
+		sagaCompensating,
+		sagaCompensated,
+		sagaCompensationFailed,
+		sagaFailed,
+	} {
+		reservationSagaTransitionsTotal.WithLabelValues(state, "success").Add(0)
+		reservationSagaTransitionsTotal.WithLabelValues(state, "failed").Add(0)
+	}
+	reservationSagaCompensationsTotal.WithLabelValues("success").Add(0)
+	reservationSagaCompensationsTotal.WithLabelValues("failed").Add(0)
 }
 
 func getEnv(key, fallback string) string {
@@ -118,12 +166,149 @@ func initTracer(ctx context.Context, serviceName string) (func(context.Context) 
 	return provider.Shutdown, nil
 }
 
+func generateWorkflowID(prefix string) string {
+	var randomBytes [4]byte
+	if _, err := rand.Read(randomBytes[:]); err != nil {
+		return fmt.Sprintf("%s-%d", prefix, time.Now().UTC().UnixNano())
+	}
+	return fmt.Sprintf("%s-%s-%x", prefix, time.Now().UTC().Format("20060102150405"), randomBytes)
+}
+
+func initializeReservationSchema(db *sql.DB) error {
+	queries := []string{
+		`CREATE TABLE IF NOT EXISTS reservations (
+			reservation_id VARCHAR(80) PRIMARY KEY,
+			user_id VARCHAR(80) NOT NULL,
+			hotel_id VARCHAR(80) NOT NULL,
+			room_type_id VARCHAR(80) NOT NULL,
+			fecha_inicio VARCHAR(20) NOT NULL,
+			fecha_fin VARCHAR(20) NOT NULL,
+			status VARCHAR(20) NOT NULL,
+			monto_total NUMERIC(10, 2) NOT NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS saga_id VARCHAR(80);`,
+		`CREATE INDEX IF NOT EXISTS idx_reservations_user_created_at ON reservations (user_id, created_at DESC);`,
+		`CREATE TABLE IF NOT EXISTS reservation_sagas (
+			saga_id VARCHAR(80) PRIMARY KEY,
+			reservation_id VARCHAR(80) NOT NULL,
+			user_id VARCHAR(80) NOT NULL,
+			hotel_id VARCHAR(80) NOT NULL,
+			room_type_id VARCHAR(80) NOT NULL,
+			status VARCHAR(80) NOT NULL,
+			current_step VARCHAR(80) NOT NULL,
+			compensation_status VARCHAR(30) NOT NULL DEFAULT 'NONE',
+			error_message TEXT NOT NULL DEFAULT '',
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`CREATE TABLE IF NOT EXISTS reservation_saga_events (
+			id SERIAL PRIMARY KEY,
+			saga_id VARCHAR(80) NOT NULL REFERENCES reservation_sagas(saga_id) ON DELETE CASCADE,
+			step VARCHAR(80) NOT NULL,
+			result VARCHAR(30) NOT NULL,
+			detail TEXT NOT NULL DEFAULT '',
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_reservation_saga_events_saga_created_at ON reservation_saga_events (saga_id, created_at);`,
+	}
+
+	for _, query := range queries {
+		if _, err := db.Exec(query); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type reservationServer struct {
 	pb.UnimplementedReservationServiceServer
 	userClient         pb.UserServiceClient
 	inventoryClient    pb.InventoryServiceClient
 	notificationClient pb.NotificationServiceClient
 	db                 *sql.DB
+}
+
+func (s *reservationServer) startSaga(ctx context.Context, sagaID string, reservationID string, req *pb.CreateReservationRequest) error {
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO reservation_sagas (saga_id, reservation_id, user_id, hotel_id, room_type_id, status, current_step)
+		VALUES ($1, $2, $3, $4, $5, $6, $6)
+	`, sagaID, reservationID, req.UserId, req.HotelId, req.RoomTypeId, sagaStarted)
+	if err != nil {
+		return err
+	}
+	s.recordSagaTransition(ctx, sagaID, sagaStarted, "success", "Saga de reserva iniciada")
+	return nil
+}
+
+func (s *reservationServer) recordSagaTransition(ctx context.Context, sagaID string, state string, result string, detail string) {
+	log.Printf("[Saga] saga_id=%s state=%s result=%s detail=%s", sagaID, state, result, detail)
+	reservationSagaTransitionsTotal.WithLabelValues(state, result).Inc()
+
+	compensationStatus := "NONE"
+	if state == sagaCompensating {
+		compensationStatus = "RUNNING"
+	} else if state == sagaCompensated {
+		compensationStatus = "DONE"
+	} else if state == sagaCompensationFailed {
+		compensationStatus = "FAILED"
+	}
+
+	if _, err := s.db.ExecContext(ctx, `
+		UPDATE reservation_sagas
+		SET status = $2,
+			current_step = $2,
+			compensation_status = CASE WHEN $3 <> 'NONE' THEN $3 ELSE compensation_status END,
+			error_message = CASE WHEN $4 = 'failed' THEN $5 ELSE error_message END,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE saga_id = $1
+	`, sagaID, state, compensationStatus, result, detail); err != nil {
+		log.Printf("[Saga] saga_id=%s error=update_state_failed detail=%v", sagaID, err)
+	}
+
+	if _, err := s.db.ExecContext(ctx, `
+		INSERT INTO reservation_saga_events (saga_id, step, result, detail)
+		VALUES ($1, $2, $3, $4)
+	`, sagaID, state, result, detail); err != nil {
+		log.Printf("[Saga] saga_id=%s error=insert_event_failed detail=%v", sagaID, err)
+	}
+}
+
+func (s *reservationServer) failSaga(ctx context.Context, sagaID string, state string, detail string) {
+	s.recordSagaTransition(ctx, sagaID, state, "failed", detail)
+	s.recordSagaTransition(ctx, sagaID, sagaFailed, "failed", detail)
+}
+
+func (s *reservationServer) compensateInventory(sagaID string, roomTypeID string) bool {
+	baseCtx := context.Background()
+	s.recordSagaTransition(baseCtx, sagaID, sagaCompensating, "success", "Liberando stock por fallo posterior al bloqueo")
+
+	for attempt := 1; attempt <= 3; attempt++ {
+		ctx, cancel := context.WithTimeout(baseCtx, 3*time.Second)
+		res, err := s.inventoryClient.UpdateStock(ctx, &pb.UpdateStockRequest{
+			RoomTypeId: roomTypeID,
+			Cantidad:   1,
+			Accion:     "LIBERAR",
+		})
+		cancel()
+
+		if err == nil && res.GetStatus() {
+			reservationSagaCompensationsTotal.WithLabelValues("success").Inc()
+			s.recordSagaTransition(baseCtx, sagaID, sagaCompensated, "success", fmt.Sprintf("Stock liberado en intento %d", attempt))
+			return true
+		}
+
+		detail := fmt.Sprintf("Intento %d fallo liberando stock: %v", attempt, err)
+		if err == nil {
+			detail = fmt.Sprintf("Intento %d no libero stock: status=false", attempt)
+		}
+		log.Printf("[Saga] saga_id=%s compensation_attempt=%d result=failed detail=%s", sagaID, attempt, detail)
+		time.Sleep(time.Duration(attempt) * 500 * time.Millisecond)
+	}
+
+	reservationSagaCompensationsTotal.WithLabelValues("failed").Inc()
+	s.recordSagaTransition(baseCtx, sagaID, sagaCompensationFailed, "failed", "No se pudo liberar stock despues de 3 intentos")
+	return false
 }
 
 func (s *reservationServer) GetReservation(ctx context.Context, req *pb.GetReservationRequest) (*pb.GetReservationResponse, error) {
@@ -156,7 +341,7 @@ func (s *reservationServer) ListReservations(ctx context.Context, req *pb.ListRe
 		return &pb.ListReservationsResponse{Reservations: []*pb.Reservation{}}, nil
 	}
 
-	query := "SELECT reservation_id, user_id, hotel_id, room_type_id, status, monto_total FROM reservations WHERE user_id = $1 ORDER BY created_at DESC"
+	query := "SELECT reservation_id, user_id, hotel_id, room_type_id, status, monto_total, fecha_inicio, fecha_fin FROM reservations WHERE user_id = $1 ORDER BY created_at DESC"
 	rows, err := s.db.QueryContext(ctx, query, req.UserId)
 	if err != nil {
 		log.Printf("[Reservas] Error leyendo base de datos: %v", err)
@@ -168,7 +353,7 @@ func (s *reservationServer) ListReservations(ctx context.Context, req *pb.ListRe
 	var list []*pb.Reservation
 	for rows.Next() {
 		var res pb.Reservation
-		if err := rows.Scan(&res.ReservationId, &res.UserId, &res.HotelId, &res.RoomTypeId, &res.Status, &res.MontoTotal); err != nil {
+		if err := rows.Scan(&res.ReservationId, &res.UserId, &res.HotelId, &res.RoomTypeId, &res.Status, &res.MontoTotal, &res.FechaInicio, &res.FechaFin); err != nil {
 			log.Printf("[Reservas] Error escaneando fila: %v", err)
 			continue
 		}
@@ -183,57 +368,68 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 	timer := prometheus.NewTimer(reservationCreationDuration)
 	defer timer.ObserveDuration()
 
-	log.Printf("[Reservas] Iniciando creacion de reserva para usuario: %s", req.UserId)
+	sagaID := generateWorkflowID("saga")
+	reservationId := generateWorkflowID("res")
+	montoTotal := 150.50
 
-	log.Printf("[Reservas] Validando usuario %s en user-service...", req.UserId)
-	userRes, errUser := s.userClient.GetUser(ctx, &pb.GetUserRequest{Id: req.UserId})
+	log.Printf("[Reservas] saga_id=%s reservation_id=%s iniciando creacion de reserva para usuario: %s", sagaID, reservationId, req.UserId)
+	if err := s.startSaga(ctx, sagaID, reservationId, req); err != nil {
+		log.Printf("[Saga] saga_id=%s result=failed detail=no se pudo persistir el inicio de la saga: %v", sagaID, err)
+		reservationsFailuresTotal.WithLabelValues("database_insert").Inc()
+		return nil, status.Errorf(codes.Internal, "no se pudo iniciar la saga de reserva")
+	}
+
+	log.Printf("[Saga] saga_id=%s step=user_validation action=calling_user_service user_id=%s", sagaID, req.UserId)
+	userCtx, userCancel := context.WithTimeout(ctx, 5*time.Second)
+	userRes, errUser := s.userClient.GetUser(userCtx, &pb.GetUserRequest{Id: req.UserId})
+	userCancel()
 	if errUser != nil {
-		log.Printf("[Reservas] Error al validar usuario: %v", errUser)
+		log.Printf("[Reservas] saga_id=%s error al validar usuario: %v", sagaID, errUser)
 		reservationsFailuresTotal.WithLabelValues("user_validation").Inc()
+		s.failSaga(context.WithoutCancel(ctx), sagaID, sagaUserValidationFailed, status.Convert(errUser).Message())
 		return nil, status.Errorf(codes.Unauthenticated, "No se pudo validar el usuario: %v", status.Convert(errUser).Message())
 	}
-	log.Printf("[Reservas] Usuario validado: %s", userRes.User.Nombre)
+	userEmail := userRes.GetUser().GetEmail()
+	s.recordSagaTransition(ctx, sagaID, sagaUserValidated, "success", fmt.Sprintf("Usuario validado: %s", userRes.User.Nombre))
 
-	log.Printf("[Reservas] Solicitando bloqueo de inventario para %s...", req.RoomTypeId)
-	invRes, errInv := s.inventoryClient.UpdateStock(ctx, &pb.UpdateStockRequest{
+	log.Printf("[Saga] saga_id=%s step=inventory_lock action=calling_inventory_service room_type_id=%s", sagaID, req.RoomTypeId)
+	invCtx, invCancel := context.WithTimeout(ctx, 5*time.Second)
+	invRes, errInv := s.inventoryClient.UpdateStock(invCtx, &pb.UpdateStockRequest{
 		RoomTypeId: req.RoomTypeId,
 		Cantidad:   1,
 		Accion:     "BLOQUEAR",
 	})
+	invCancel()
 	if errInv != nil {
-		log.Printf("[Reservas] Error al bloquear inventario: %v", errInv)
+		log.Printf("[Reservas] saga_id=%s error al bloquear inventario: %v", sagaID, errInv)
 		reservationsFailuresTotal.WithLabelValues("inventory_lock").Inc()
+		s.failSaga(context.WithoutCancel(ctx), sagaID, sagaStockLockFailed, status.Convert(errInv).Message())
 		return nil, status.Errorf(codes.ResourceExhausted, "No se pudo asegurar la habitacion: %v", status.Convert(errInv).Message())
 	}
 	if !invRes.Status {
 		reservationsFailuresTotal.WithLabelValues("inventory_no_stock").Inc()
+		s.failSaga(context.WithoutCancel(ctx), sagaID, sagaStockUnavailable, "Inventario respondio status=false")
 		return nil, status.Errorf(codes.ResourceExhausted, "No hay stock disponible")
 	}
-	log.Printf("[Reservas] Inventario bloqueado exitosamente para %s", req.RoomTypeId)
+	s.recordSagaTransition(ctx, sagaID, sagaStockLocked, "success", fmt.Sprintf("Stock bloqueado para room_type_id=%s", req.RoomTypeId))
 
-	reservationId := "res-" + time.Now().Format("20060102150405")
-	montoTotal := 150.50
-
-	query := `INSERT INTO reservations (reservation_id, user_id, hotel_id, room_type_id, fecha_inicio, fecha_fin, status, monto_total)
-			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+	query := `INSERT INTO reservations (reservation_id, user_id, hotel_id, room_type_id, fecha_inicio, fecha_fin, status, monto_total, saga_id)
+			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 	_, errDb := s.db.ExecContext(ctx, query,
 		reservationId, req.UserId, req.HotelId, req.RoomTypeId,
-		req.FechaInicio, req.FechaFin, "CONFIRMADA", montoTotal)
+		req.FechaInicio, req.FechaFin, "CONFIRMADA", montoTotal, sagaID)
 	if errDb != nil {
-		log.Printf("[Reservas] Error al guardar en PostgreSQL: %v", errDb)
+		log.Printf("[Reservas] saga_id=%s error al guardar en PostgreSQL: %v", sagaID, errDb)
 		reservationsFailuresTotal.WithLabelValues("database_insert").Inc()
-		go func() {
-			_, _ = s.inventoryClient.UpdateStock(context.Background(), &pb.UpdateStockRequest{
-				RoomTypeId: req.RoomTypeId,
-				Cantidad:   1,
-				Accion:     "LIBERAR",
-			})
-		}()
+		s.recordSagaTransition(context.WithoutCancel(ctx), sagaID, sagaReservationInsertFailed, "failed", errDb.Error())
+		s.compensateInventory(sagaID, req.RoomTypeId)
+		s.recordSagaTransition(context.Background(), sagaID, sagaFailed, "failed", "Reserva no persistida; se ejecuto compensacion de inventario")
 		return nil, status.Errorf(codes.Internal, "error interno al guardar la reserva")
 	}
-	log.Printf("[Reservas] Reserva %s creada en PostgreSQL", reservationId)
+	s.recordSagaTransition(ctx, sagaID, sagaReservationCreated, "success", fmt.Sprintf("Reserva %s creada en PostgreSQL", reservationId))
 
 	notifBaseCtx := context.WithoutCancel(ctx)
+	s.recordSagaTransition(notifBaseCtx, sagaID, sagaNotificationDispatching, "success", "Notificacion asincrona iniciada")
 	go func() {
 		notifCtx, cancel := context.WithTimeout(notifBaseCtx, 3*time.Second)
 		defer cancel()
@@ -241,13 +437,16 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 			UserId:        req.UserId,
 			ReservationId: reservationId,
 			Tipo:          "CONFIRMACION",
+			Email:         userEmail,
 		})
 		if err != nil {
-			log.Printf("[Reservas] Error al enviar notificacion: %v", err)
+			log.Printf("[Reservas] saga_id=%s error al enviar notificacion: %v", sagaID, err)
 			reservationsNotificationsTotal.WithLabelValues("failed").Inc()
+			s.recordSagaTransition(context.Background(), sagaID, sagaCompletedWithNotificationFailure, "failed", status.Convert(err).Message())
 		} else {
-			log.Printf("[Reservas] Notificacion enviada exitosamente")
+			log.Printf("[Reservas] saga_id=%s notificacion enviada exitosamente", sagaID)
 			reservationsNotificationsTotal.WithLabelValues("success").Inc()
+			s.recordSagaTransition(context.Background(), sagaID, sagaCompleted, "success", "Reserva confirmada y notificacion procesada")
 		}
 	}()
 
@@ -298,20 +497,8 @@ func main() {
 	}
 	defer db.Close()
 
-	createTableQuery := `
-	CREATE TABLE IF NOT EXISTS reservations (
-		reservation_id VARCHAR(50) PRIMARY KEY,
-		user_id VARCHAR(50) NOT NULL,
-		hotel_id VARCHAR(50) NOT NULL,
-		room_type_id VARCHAR(50) NOT NULL,
-		fecha_inicio VARCHAR(20) NOT NULL,
-		fecha_fin VARCHAR(20) NOT NULL,
-		status VARCHAR(20) NOT NULL,
-		monto_total NUMERIC(10, 2) NOT NULL,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	);`
-	if _, err := db.Exec(createTableQuery); err != nil {
-		log.Fatalf("Error creando tabla: %v", err)
+	if err := initializeReservationSchema(db); err != nil {
+		log.Fatalf("Error inicializando esquema de reservas y saga: %v", err)
 	}
 
 	userHost := getEnv("USER_SERVICE_HOST", "localhost:9090")
