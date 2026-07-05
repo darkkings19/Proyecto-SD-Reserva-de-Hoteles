@@ -1,3 +1,4 @@
+# Benjamín Jared Cruzado Fuentes
 # Documento individual del bloque - Observabilidad
 
 ## 1. Contexto del sistema
@@ -169,21 +170,7 @@ El conteo de usuarios activos requiere persistir sesiones. Esto agrega estado al
 
 Algunas variables y secretos son de desarrollo. En produccion deberian moverse a un gestor de secretos.
 
-## 10. Coherencia entre documento e implementacion
-
-Lo documentado coincide con lo implementado:
-
-- Prometheus esta configurado para leer usuarios, reservas, inventario y notificaciones.
-- Loki y Promtail estan configurados para centralizar logs de contenedores.
-- Tempo y OpenTelemetry Collector estan configurados para recibir y almacenar trazas.
-- Grafana tiene datasources para Prometheus, Loki y Tempo.
-- Grafana provisiona dashboards para usuarios, sistema completo y tres pilares.
-- El API Gateway propaga contexto de trazas hacia llamadas gRPC.
-- Los servicios Go usan OpenTelemetry para cliente y servidor gRPC.
-- El servicio Java de usuarios usa agente OpenTelemetry.
-- Notificaciones usa instrumentacion OpenTelemetry en Python.
-
-## 11. Como se debe demostrar
+## 10. Como se debe demostrar
 
 Primero se muestra la aplicacion funcionando: frontend, login, busqueda de habitaciones y creacion de reserva.
 
@@ -197,7 +184,7 @@ Luego se muestra Grafana:
 
 La idea principal es demostrar que ahora el sistema no solo funciona, sino que tambien se puede observar internamente.
 
-## 12. Donde ver la observabilidad
+## 11. Donde ver la observabilidad
 
 La aplicacion y las herramientas quedan disponibles en estas direcciones locales:
 
@@ -219,93 +206,7 @@ Grafana usa normalmente estas credenciales:
 - Usuario: `admin`
 - Password: `admin`
 
-## 13. Como ver metricas, logs y trazas en Grafana
-
-Grafana tiene dos formas principales de revisar la observabilidad:
-
-- Dashboards: vistas ya armadas para mostrar informacion rapidamente.
-- Explore: vista manual para investigar metricas, logs o trazas especificas.
-
-### Dashboards
-
-En Grafana se debe entrar a `Dashboards`. Hay tres dashboards porque cada uno tiene un objetivo distinto:
-
-- `User Service Observability`: muestra el modulo de usuarios con mas detalle. Aqui se ven usuarios creados, logins exitosos, logins fallidos, sesiones activas, validaciones de token y errores del modulo.
-- `System Observability`: muestra metricas del sistema completo. Aqui se ven usuarios, reservas, inventario y notificaciones en una vista general.
-- `Three Pillars Observability`: muestra la idea principal de la entrega: metricas, logs y trazas en un mismo lugar.
-
-El dashboard mas importante para explicar el bloque es `Three Pillars Observability`, porque conecta directamente con lo pedido por el profesor: Prometheus, Loki y Tempo.
-
-### Metricas con Prometheus
-
-Para ver metricas en Grafana:
-
-1. Entrar a `Explore`.
-2. Seleccionar el datasource `Prometheus`.
-3. Buscar metricas del sistema.
-
-Metricas utiles para mostrar:
-
-- `up`: muestra si los servicios estan arriba.
-- `users_created_total`: usuarios creados.
-- `users_login_success_total`: logins exitosos.
-- `users_login_failed_total`: logins fallidos.
-- `users_active_sessions`: usuarios con sesion activa en este momento.
-- `reservations_created_total`: reservas creadas.
-- `inventory_search_total`: busquedas de habitaciones.
-- `notifications_saved_total`: notificaciones guardadas.
-
-Prometheus tambien se puede ver sin Grafana en `http://localhost:9091`, especialmente en `http://localhost:9091/targets`, donde se espera ver `UP` para los servicios observados.
-
-### Logs con Loki
-
-Para ver logs en Grafana:
-
-1. Entrar a `Explore`.
-2. Seleccionar el datasource `Loki`.
-3. Filtrar por servicio.
-
-Servicios utiles para filtrar:
-
-- `api_gateway`
-- `user-service`
-- `reservation_service`
-- `inventario_service`
-- `notification_service`
-
-Los logs permiten ver mensajes como login exitoso, login fallido, reserva creada, validacion de usuario, bloqueo de inventario o notificacion enviada.
-
-Loki tambien se puede verificar sin Grafana, pero no tiene una interfaz visual comoda. Por eso se usan principalmente estas URLs tecnicas:
-
-- `http://localhost:3100/ready`
-- `http://localhost:3100/loki/api/v1/labels`
-- `http://localhost:3100/loki/api/v1/label/service/values`
-
-### Trazas con Tempo
-
-Para ver trazas en Grafana:
-
-1. Entrar a `Explore`.
-2. Seleccionar el datasource `Tempo`.
-3. Buscar trazas recientes.
-4. Abrir una traza asociada a `POST /reservations`.
-
-La traza de `POST /reservations` es la mas importante para demostrar el sistema distribuido, porque muestra el recorrido de una reserva por:
-
-- `api-gateway`
-- `reservation-service`
-- `user-service`
-- `inventory-service`
-- `notification-service`
-
-Tempo tambien se puede verificar sin Grafana con:
-
-- `http://localhost:3200/ready`
-- `http://localhost:3200/api/search`
-
-Sin embargo, la forma mas clara de explicar las trazas es desde Grafana, porque permite verlas como una linea de tiempo entre servicios.
-
-## 14. Orden recomendado para la demostracion
+## 12. Orden recomendado para la demostracion
 
 El orden recomendado para mostrar el trabajo es:
 
@@ -318,5 +219,3 @@ El orden recomendado para mostrar el trabajo es:
 7. Mostrar `User Service Observability` para explicar el modulo individual de usuarios.
 8. Ir a `Explore` con `Loki` y mostrar logs por servicio.
 9. Ir a `Explore` con `Tempo` y abrir una traza de `POST /reservations`.
-
-La explicacion central es que Prometheus muestra los numeros, Loki muestra los mensajes y Tempo muestra el recorrido de una peticion entre microservicios.
