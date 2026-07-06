@@ -16,9 +16,11 @@ La versión correspondiente a esta entrega se encuentra en la rama main.
 
 Dentro de la rama main existe la carpeta Entrega 2 Benjamin Cruzado, la cual contiene los archivos solicitados para esta entrega:
 
-documento-bloque-observabilidad-entrega2.md (versión en Markdown).
-documento-bloque-observabilidad-entrega2.pdf (versión en PDF).
-link-video-demo-observabilidad.md, que contiene el enlace al video demostrativo.
+- documento-bloque-observabilidad-entrega2.md (versión en Markdown).
+
+- documento-bloque-observabilidad-entrega2.pdf (versión en PDF).
+
+- link-video-demo-observabilidad.md, que contiene el enlace al video demostrativo.
 
 ## 1. Contexto del sistema
 
