@@ -1,6 +1,25 @@
 # Benjamín Jared Cruzado Fuentes
 # Documento individual del bloque - Observabilidad
 
+## 0. Enlace al repositorio y Video
+
+El video demostrativo de la implementación puede visualizarse en el siguiente enlace:
+
+https://drive.google.com/file/d/18Z0MqzcSrDBxPYnv3bRGFw-iW2IAJajh/view?usp=sharing
+
+El repositorio del proyecto se encuentra disponible en el siguiente enlace:
+
+Repositorio:
+https://github.com/darkkings19/Proyecto-SD-Reserva-de-Hoteles
+
+La versión correspondiente a esta entrega se encuentra en la rama main.
+
+Dentro de la rama main existe la carpeta Entrega 2 Benjamin Cruzado, la cual contiene los archivos solicitados para esta entrega:
+
+documento-bloque-observabilidad-entrega2.md (versión en Markdown).
+documento-bloque-observabilidad-entrega2.pdf (versión en PDF).
+link-video-demo-observabilidad.md, que contiene el enlace al video demostrativo.
+
 ## 1. Contexto del sistema
 
 Origen X es una aplicacion distribuida para reserva de hoteles. El usuario interactua desde el frontend, las peticiones entran al API Gateway y luego se comunican con distintos microservicios:
