@@ -116,12 +116,12 @@
             "type": "tempo",
             "uid": "tempo"
           },
-          "query": "{ resource.service.name != \"\" }",
+          "query": "{ resource.service.name =~ \"api-gateway|reservation-service|inventory-service|notification-service\" }",
           "queryType": "traceql",
           "refId": "A"
         }
       ],
-      "title": "Pilar 3 - Trazas distribuidas Tempo",
+      "title": "Pilar 3 - Trazas distribuidas Tempo - flujo aplicacion",
       "type": "table"
     }
   ],
