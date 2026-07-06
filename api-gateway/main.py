@@ -1,13 +1,18 @@
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Annotated
+import grpc
+import math
 import os
 import logging
 
 # Clientes locales
 from inventory_client import search_available_rooms
 from observability import setup_observability
+from rate_limiter import RateLimitMiddleware, RateLimitExceeded, check_login_rate_limit
+from resilience import call_with_retry, new_idempotency_key
 from reservations_client import ReservationsClient
 from users_client import UsersClient
 
@@ -21,6 +26,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RateLimitMiddleware)
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    seconds = max(1, math.ceil(exc.retry_after))
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Demasiados intentos de inicio de sesion"},
+        headers={"Retry-After": str(seconds)},
+    )
+
+
+def _grpc_message(exc: grpc.RpcError) -> str:
+    details = getattr(exc, "details", None)
+    return details() if callable(details) else str(exc)
 
 # --- Modelos de Datos ---
 class SearchRoomsRequest(BaseModel):
@@ -85,14 +106,19 @@ def require_session_user(users_client: UsersClient, authorization: str | None):
 @app.post("/api/inventory/search")
 async def search_rooms(req: SearchRoomsRequest):
     try:
-        rooms = search_available_rooms(
+        rooms = await call_with_retry(
+            search_available_rooms,
             fecha_inicio=req.fecha_inicio,
             fecha_fin=req.fecha_fin,
             ubicacion=req.ubicacion,
             precio_max=req.precio_max,
-            capacidad=req.capacidad
+            capacidad=req.capacidad,
+            operation="search_available_rooms",
         )
-        return {"rooms": rooms}
+        return {"rooms": rooms, "degraded": False}
+    except grpc.RpcError as e:
+        logging.warning(f"Busqueda de inventario degradada tras agotar reintentos: {_grpc_message(e)}")
+        return {"rooms": [], "degraded": True}
     except Exception as e:
         logging.error(f"Error en búsqueda: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -106,7 +132,9 @@ async def list_reservations(
 ):
     try:
         session_user = require_session_user(users_client, authorization)
-        reservations = await client.list_reservations(user_id=session_user.id)
+        reservations = await call_with_retry(
+            client.list_reservations, user_id=session_user.id, operation="list_reservations",
+        )
         return [
             {
                 "reservation_id": r.reservation_id,
@@ -128,25 +156,40 @@ async def create_reservation(
     req: CreateReservationRequest,
     client: Annotated[ReservationsClient, Depends(get_reservations_client)],
     users_client: Annotated[UsersClient, Depends(get_users_client)],
-    authorization: str | None = Header(default=None)
+    authorization: str | None = Header(default=None),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ):
+    # Se genera una clave una sola vez por peticion HTTP entrante (o se usa la
+    # que envio el cliente) y se reutiliza en todos los reintentos internos,
+    # para que un reintento nunca cree una reserva duplicada.
+    key = idempotency_key or new_idempotency_key()
     try:
         session_user = require_session_user(users_client, authorization)
-        result = await client.create_reservation(
+        result = await call_with_retry(
+            client.create_reservation,
             user_id=session_user.id,
             hotel_id=req.hotel_id,
             room_type_id=req.room_type_id,
             fecha_inicio=req.fecha_inicio,
             fecha_fin=req.fecha_fin,
+            idempotency_key=key,
+            operation="create_reservation",
         )
         return {
             "reservation_id": result.reservation_id,
             "status": result.status,
             "monto_total": result.monto_total,
         }
+    except HTTPException:
+        raise
+    except grpc.RpcError as e:
+        code = e.code()
+        if code in (grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.DEADLINE_EXCEEDED):
+            raise HTTPException(status_code=503, detail="Dependencia no disponible") from e
+        if code == grpc.StatusCode.UNAUTHENTICATED:
+            raise HTTPException(status_code=401, detail=_grpc_message(e)) from e
+        raise HTTPException(status_code=409, detail=_grpc_message(e)) from e
     except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
         raise HTTPException(status_code=409, detail=str(e))
 
 @app.post("/users", status_code=201)
@@ -223,7 +266,8 @@ async def update_user(
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/login")
-async def login(req: LoginRequest, client: Annotated[UsersClient, Depends(get_users_client)]):
+async def login(req: LoginRequest, request: Request, client: Annotated[UsersClient, Depends(get_users_client)]):
+    check_login_rate_limit(request, req.email)
     try:
         res = client.authenticate(email=req.email, password=req.password)
         if not res.success:

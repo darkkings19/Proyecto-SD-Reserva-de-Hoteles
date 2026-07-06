@@ -3,6 +3,8 @@ import os
 import sys
 from opentelemetry.propagate import inject
 
+from resilience import TIMEOUT_SEARCH
+
 # Añadir la carpeta de protos al path para que los imports internos de gRPC funcionen
 sys.path.append(os.path.join(os.path.dirname(__file__), 'proto'))
 
@@ -30,7 +32,7 @@ def search_available_rooms(fecha_inicio, fecha_fin, ubicacion="", precio_max=0, 
         capacidad=capacidad
     )
     
-    response = stub.SearchAvailableRooms(request, metadata=trace_metadata())
+    response = stub.SearchAvailableRooms(request, metadata=trace_metadata(), timeout=TIMEOUT_SEARCH)
     
     results = []
     for r in response.rooms:

@@ -3,6 +3,8 @@ import os
 import sys
 from opentelemetry.propagate import inject
 
+from resilience import TIMEOUT_USER_CALL
+
 # Añadir la carpeta de protos al path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'proto'))
 
@@ -32,7 +34,7 @@ class UsersClient:
             telefono=telefono
         )
         
-        response = stub.CreateUser(request, metadata=trace_metadata())
+        response = stub.CreateUser(request, metadata=trace_metadata(), timeout=TIMEOUT_USER_CALL)
         return response.user
 
     def get_user(self, user_id):
@@ -40,7 +42,7 @@ class UsersClient:
         stub = servicio_pb2_grpc.UserServiceStub(channel)
 
         request = servicio_pb2.GetUserRequest(id=user_id)
-        response = stub.GetUser(request)
+        response = stub.GetUser(request, timeout=TIMEOUT_USER_CALL)
         return response.user
 
     def update_user(self, user_id, nombre, telefono=""):
@@ -52,7 +54,7 @@ class UsersClient:
             nombre=nombre,
             telefono=telefono
         )
-        response = stub.UpdateUser(request)
+        response = stub.UpdateUser(request, timeout=TIMEOUT_USER_CALL)
         return response.user
 
     def authenticate(self, email, password):
@@ -64,7 +66,7 @@ class UsersClient:
             password=password
         )
         
-        response = stub.AuthenticateUser(request, metadata=trace_metadata())
+        response = stub.AuthenticateUser(request, metadata=trace_metadata(), timeout=TIMEOUT_USER_CALL)
         return response
 
     def logout(self, access_token):
@@ -72,11 +74,11 @@ class UsersClient:
         stub = servicio_pb2_grpc.UserServiceStub(channel)
 
         request = servicio_pb2.LogoutRequest(access_token=access_token)
-        return stub.LogoutUser(request, metadata=trace_metadata())
+        return stub.LogoutUser(request, metadata=trace_metadata(), timeout=TIMEOUT_USER_CALL)
 
     def validate_token(self, access_token):
         channel = grpc.insecure_channel(self.host)
         stub = servicio_pb2_grpc.UserServiceStub(channel)
 
         request = servicio_pb2.ValidateTokenRequest(access_token=access_token)
-        return stub.ValidateToken(request, metadata=trace_metadata())
+        return stub.ValidateToken(request, metadata=trace_metadata(), timeout=TIMEOUT_USER_CALL)

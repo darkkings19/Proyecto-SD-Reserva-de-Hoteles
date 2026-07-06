@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -83,6 +84,10 @@ var (
 		Name: "reservation_saga_compensations_total",
 		Help: "Compensaciones de inventario ejecutadas por la saga de reservas.",
 	}, []string{"result"})
+	reservationsIdempotentReplaysTotal = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "reservations_idempotent_replays_total",
+		Help: "Veces que se devolvio una reserva existente en vez de crear una nueva por idempotency_key repetida.",
+	})
 )
 
 func init() {
@@ -95,6 +100,7 @@ func init() {
 		reservationCreationDuration,
 		reservationSagaTransitionsTotal,
 		reservationSagaCompensationsTotal,
+		reservationsIdempotentReplaysTotal,
 	)
 	reservationsFailuresTotal.WithLabelValues("user_validation").Add(0)
 	reservationsFailuresTotal.WithLabelValues("inventory_lock").Add(0)
@@ -189,6 +195,8 @@ func initializeReservationSchema(db *sql.DB) error {
 		);`,
 		`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS saga_id VARCHAR(80);`,
 		`CREATE INDEX IF NOT EXISTS idx_reservations_user_created_at ON reservations (user_id, created_at DESC);`,
+		`ALTER TABLE reservations ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(120);`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_reservations_idempotency_key ON reservations (idempotency_key) WHERE idempotency_key IS NOT NULL AND idempotency_key <> '';`,
 		`CREATE TABLE IF NOT EXISTS reservation_sagas (
 			saga_id VARCHAR(80) PRIMARY KEY,
 			reservation_id VARCHAR(80) NOT NULL,
@@ -227,6 +235,10 @@ type reservationServer struct {
 	inventoryClient    pb.InventoryServiceClient
 	notificationClient pb.NotificationServiceClient
 	db                 *sql.DB
+
+	userBreaker         *CircuitBreaker
+	inventoryBreaker    *CircuitBreaker
+	notificationBreaker *CircuitBreaker
 }
 
 func (s *reservationServer) startSaga(ctx context.Context, sagaID string, reservationID string, req *pb.CreateReservationRequest) error {
@@ -285,10 +297,12 @@ func (s *reservationServer) compensateInventory(sagaID string, roomTypeID string
 
 	for attempt := 1; attempt <= 3; attempt++ {
 		ctx, cancel := context.WithTimeout(baseCtx, 3*time.Second)
-		res, err := s.inventoryClient.UpdateStock(ctx, &pb.UpdateStockRequest{
-			RoomTypeId: roomTypeID,
-			Cantidad:   1,
-			Accion:     "LIBERAR",
+		res, err := Execute(s.inventoryBreaker, func() (*pb.UpdateStockResponse, error) {
+			return s.inventoryClient.UpdateStock(ctx, &pb.UpdateStockRequest{
+				RoomTypeId: roomTypeID,
+				Cantidad:   1,
+				Accion:     "LIBERAR",
+			})
 		})
 		cancel()
 
@@ -368,6 +382,26 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 	timer := prometheus.NewTimer(reservationCreationDuration)
 	defer timer.ObserveDuration()
 
+	if req.IdempotencyKey != "" {
+		var existingID, existingStatus string
+		var existingMonto float64
+		err := s.db.QueryRowContext(ctx,
+			`SELECT reservation_id, status, monto_total FROM reservations WHERE idempotency_key = $1`,
+			req.IdempotencyKey,
+		).Scan(&existingID, &existingStatus, &existingMonto)
+		if err == nil {
+			reservationsIdempotentReplaysTotal.Inc()
+			log.Printf("[Reservas] idempotency_key=%s ya fue usada; devolviendo reserva %s sin repetir la saga", req.IdempotencyKey, existingID)
+			return &pb.CreateReservationResponse{
+				ReservationId: existingID,
+				Status:        existingStatus,
+				MontoTotal:    existingMonto,
+			}, nil
+		} else if err != sql.ErrNoRows {
+			log.Printf("[Reservas] error verificando idempotency_key=%s: %v (se continua creando la reserva)", req.IdempotencyKey, err)
+		}
+	}
+
 	sagaID := generateWorkflowID("saga")
 	reservationId := generateWorkflowID("res")
 	montoTotal := 150.50
@@ -381,12 +415,18 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 
 	log.Printf("[Saga] saga_id=%s step=user_validation action=calling_user_service user_id=%s", sagaID, req.UserId)
 	userCtx, userCancel := context.WithTimeout(ctx, 5*time.Second)
-	userRes, errUser := s.userClient.GetUser(userCtx, &pb.GetUserRequest{Id: req.UserId})
+	userRes, errUser := Execute(s.userBreaker, func() (*pb.UserResponse, error) {
+		return s.userClient.GetUser(userCtx, &pb.GetUserRequest{Id: req.UserId})
+	})
 	userCancel()
 	if errUser != nil {
 		log.Printf("[Reservas] saga_id=%s error al validar usuario: %v", sagaID, errUser)
 		reservationsFailuresTotal.WithLabelValues("user_validation").Inc()
 		s.failSaga(context.WithoutCancel(ctx), sagaID, sagaUserValidationFailed, status.Convert(errUser).Message())
+		var circuitErr *ErrCircuitOpen
+		if errors.As(errUser, &circuitErr) {
+			return nil, status.Errorf(codes.Unavailable, "Servicio de usuarios no disponible en este momento")
+		}
 		return nil, status.Errorf(codes.Unauthenticated, "No se pudo validar el usuario: %v", status.Convert(errUser).Message())
 	}
 	userEmail := userRes.GetUser().GetEmail()
@@ -394,16 +434,22 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 
 	log.Printf("[Saga] saga_id=%s step=inventory_lock action=calling_inventory_service room_type_id=%s", sagaID, req.RoomTypeId)
 	invCtx, invCancel := context.WithTimeout(ctx, 5*time.Second)
-	invRes, errInv := s.inventoryClient.UpdateStock(invCtx, &pb.UpdateStockRequest{
-		RoomTypeId: req.RoomTypeId,
-		Cantidad:   1,
-		Accion:     "BLOQUEAR",
+	invRes, errInv := Execute(s.inventoryBreaker, func() (*pb.UpdateStockResponse, error) {
+		return s.inventoryClient.UpdateStock(invCtx, &pb.UpdateStockRequest{
+			RoomTypeId: req.RoomTypeId,
+			Cantidad:   1,
+			Accion:     "BLOQUEAR",
+		})
 	})
 	invCancel()
 	if errInv != nil {
 		log.Printf("[Reservas] saga_id=%s error al bloquear inventario: %v", sagaID, errInv)
 		reservationsFailuresTotal.WithLabelValues("inventory_lock").Inc()
 		s.failSaga(context.WithoutCancel(ctx), sagaID, sagaStockLockFailed, status.Convert(errInv).Message())
+		var circuitErr *ErrCircuitOpen
+		if errors.As(errInv, &circuitErr) {
+			return nil, status.Errorf(codes.Unavailable, "Servicio de inventario no disponible en este momento")
+		}
 		return nil, status.Errorf(codes.ResourceExhausted, "No se pudo asegurar la habitacion: %v", status.Convert(errInv).Message())
 	}
 	if !invRes.Status {
@@ -413,11 +459,16 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 	}
 	s.recordSagaTransition(ctx, sagaID, sagaStockLocked, "success", fmt.Sprintf("Stock bloqueado para room_type_id=%s", req.RoomTypeId))
 
-	query := `INSERT INTO reservations (reservation_id, user_id, hotel_id, room_type_id, fecha_inicio, fecha_fin, status, monto_total, saga_id)
-			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	var idempotencyKeyParam interface{}
+	if req.IdempotencyKey != "" {
+		idempotencyKeyParam = req.IdempotencyKey
+	}
+
+	query := `INSERT INTO reservations (reservation_id, user_id, hotel_id, room_type_id, fecha_inicio, fecha_fin, status, monto_total, saga_id, idempotency_key)
+			  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 	_, errDb := s.db.ExecContext(ctx, query,
 		reservationId, req.UserId, req.HotelId, req.RoomTypeId,
-		req.FechaInicio, req.FechaFin, "CONFIRMADA", montoTotal, sagaID)
+		req.FechaInicio, req.FechaFin, "CONFIRMADA", montoTotal, sagaID, idempotencyKeyParam)
 	if errDb != nil {
 		log.Printf("[Reservas] saga_id=%s error al guardar en PostgreSQL: %v", sagaID, errDb)
 		reservationsFailuresTotal.WithLabelValues("database_insert").Inc()
@@ -433,11 +484,13 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 	go func() {
 		notifCtx, cancel := context.WithTimeout(notifBaseCtx, 3*time.Second)
 		defer cancel()
-		_, err := s.notificationClient.SendConfirmation(notifCtx, &pb.SendConfirmationRequest{
-			UserId:        req.UserId,
-			ReservationId: reservationId,
-			Tipo:          "CONFIRMACION",
-			Email:         userEmail,
+		_, err := Execute(s.notificationBreaker, func() (*pb.SendConfirmationResponse, error) {
+			return s.notificationClient.SendConfirmation(notifCtx, &pb.SendConfirmationRequest{
+				UserId:        req.UserId,
+				ReservationId: reservationId,
+				Tipo:          "CONFIRMACION",
+				Email:         userEmail,
+			})
 		})
 		if err != nil {
 			log.Printf("[Reservas] saga_id=%s error al enviar notificacion: %v", sagaID, err)
@@ -527,6 +580,10 @@ func main() {
 		inventoryClient:    pb.NewInventoryServiceClient(invConn),
 		notificationClient: pb.NewNotificationServiceClient(notifConn),
 		db:                 db,
+
+		userBreaker:         NewCircuitBreaker("user", 5, 15*time.Second),
+		inventoryBreaker:    NewCircuitBreaker("inventory", 5, 15*time.Second),
+		notificationBreaker: NewCircuitBreaker("notification", 5, 15*time.Second),
 	}
 
 	port := getEnv("PORT", "50052")

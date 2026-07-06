@@ -33,8 +33,9 @@ message CreateReservationRequest {
   string room_type_id   = 3;
   string fecha_inicio   = 4;
   string fecha_fin      = 5;
+  string idempotency_key = 6;
 }
-message CreateReservationResponse { 
+message CreateReservationResponse {
   string reservation_id = 1;
   string status         = 2;
   double monto_total    = 3;

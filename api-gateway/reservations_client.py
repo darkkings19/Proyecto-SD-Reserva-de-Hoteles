@@ -4,6 +4,8 @@ import sys
 from dataclasses import dataclass
 from opentelemetry.propagate import inject
 
+from resilience import TIMEOUT_RESERVATION_CREATE, TIMEOUT_RESERVATION_READ
+
 sys.path.append(os.path.join(os.path.dirname(__file__), 'proto'))
 
 try:
@@ -32,10 +34,11 @@ class ReservationsClient:
             response = await stub.ListReservations(
                 servicio_pb2.ListReservationsRequest(user_id=user_id),
                 metadata=trace_metadata(),
+                timeout=TIMEOUT_RESERVATION_READ,
             )
             return response.reservations
 
-    async def create_reservation(self, user_id, hotel_id, room_type_id, fecha_inicio, fecha_fin):
+    async def create_reservation(self, user_id, hotel_id, room_type_id, fecha_inicio, fecha_fin, idempotency_key=""):
         async with grpc.aio.insecure_channel(self.host) as channel:
             stub = servicio_pb2_grpc.ReservationServiceStub(channel)
             request = servicio_pb2.CreateReservationRequest(
@@ -43,9 +46,12 @@ class ReservationsClient:
                 hotel_id=hotel_id,
                 room_type_id=room_type_id,
                 fecha_inicio=fecha_inicio,
-                fecha_fin=fecha_fin
+                fecha_fin=fecha_fin,
+                idempotency_key=idempotency_key,
             )
-            response = await stub.CreateReservation(request, metadata=trace_metadata())
+            response = await stub.CreateReservation(
+                request, metadata=trace_metadata(), timeout=TIMEOUT_RESERVATION_CREATE,
+            )
             return CreateReservationResult(
                 reservation_id=response.reservation_id,
                 status=response.status,
