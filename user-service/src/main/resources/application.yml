@@ -19,6 +19,12 @@ grpc:
   server:
     port: ${GRPC_PORT:9090}
 
+kafka:
+  enabled: ${KAFKA_ENABLED:false}
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+  users-topic: ${KAFKA_USERS_TOPIC:origenx.users.events}
+  client-id: ${KAFKA_CLIENT_ID:user-service}
+
 management:
   endpoint:
     health:

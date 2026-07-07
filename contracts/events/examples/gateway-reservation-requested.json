@@ -1,0 +1,15 @@
+{
+  "event_id": "55555555-5555-4555-8555-555555555554",
+  "event_type": "GatewayReservationRequested",
+  "version": 1,
+  "source_service": "api-gateway",
+  "occurred_at": "2026-07-05T16:10:00Z",
+  "correlation_id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeee11",
+  "payload": {
+    "user_id": "usr-1001",
+    "hotel_id": "hotel-001",
+    "room_type_id": "room-std-001",
+    "fecha_inicio": "2026-07-10",
+    "fecha_fin": "2026-07-12"
+  }
+}

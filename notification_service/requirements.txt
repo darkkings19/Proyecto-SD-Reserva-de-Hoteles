@@ -19,3 +19,4 @@ opentelemetry-sdk==1.28.2
 opentelemetry-exporter-otlp==1.28.2
 opentelemetry-instrumentation-grpc==0.49b2
 opentelemetry-instrumentation-logging==0.49b2
+kafka-python==2.0.2

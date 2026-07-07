@@ -11,6 +11,8 @@ import com.sde.user.exception.EmailAlreadyExistsException;
 import com.sde.user.exception.InvalidCredentialsException;
 import com.sde.user.exception.InvalidTokenException;
 import com.sde.user.exception.UserNotFoundException;
+import com.sde.user.events.UserEventFactory;
+import com.sde.user.events.UserEventPublisher;
 import com.sde.user.mapper.UserMapper;
 import com.sde.user.observability.UserMetrics;
 import com.sde.user.repository.UserRepository;
@@ -35,6 +37,7 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final UserMetrics userMetrics;
     private final JwtTokenService jwtTokenService;
+    private final UserEventPublisher userEventPublisher;
 
     public UserServiceImpl(
             UserRepository userRepository,
@@ -42,7 +45,8 @@ public class UserServiceImpl implements UserService {
             PasswordEncoder passwordEncoder,
             UserMapper userMapper,
             UserMetrics userMetrics,
-            JwtTokenService jwtTokenService
+            JwtTokenService jwtTokenService,
+            UserEventPublisher userEventPublisher
     ) {
         this.userRepository = userRepository;
         this.sessionRepository = sessionRepository;
@@ -50,6 +54,7 @@ public class UserServiceImpl implements UserService {
         this.userMapper = userMapper;
         this.userMetrics = userMetrics;
         this.jwtTokenService = jwtTokenService;
+        this.userEventPublisher = userEventPublisher;
     }
 
     @Override
@@ -71,7 +76,9 @@ public class UserServiceImpl implements UserService {
         UserEntity savedEntity = userRepository.save(entity);
         userMetrics.userCreated();
         log.info("Usuario creado correctamente: id={}, email={}, rol={}", savedEntity.getId(), savedEntity.getEmail(), savedEntity.getRol());
-        return userMapper.toDto(savedEntity);
+        UserDto userDto = userMapper.toDto(savedEntity);
+        userEventPublisher.publish(userDto.id().toString(), UserEventFactory.userCreated(userDto));
+        return userDto;
     }
 
     @Override
@@ -109,7 +116,9 @@ public class UserServiceImpl implements UserService {
         UserEntity updatedEntity = userRepository.save(entity);
         userMetrics.userUpdated();
         log.info("Usuario actualizado correctamente: id={}", updatedEntity.getId());
-        return userMapper.toDto(updatedEntity);
+        UserDto userDto = userMapper.toDto(updatedEntity);
+        userEventPublisher.publish(userDto.id().toString(), UserEventFactory.userUpdated(userDto));
+        return userDto;
     }
 
     @Override
@@ -141,7 +150,9 @@ public class UserServiceImpl implements UserService {
 
         userMetrics.loginSuccess();
         log.info("Login exitoso: id={}, email={}, session_expires_at={}", entity.getId(), entity.getEmail(), generatedToken.expiresAt());
-        return new AuthenticatedUserDto(userMapper.toDto(entity), generatedToken.token(), generatedToken.expiresAt());
+        UserDto userDto = userMapper.toDto(entity);
+        userEventPublisher.publish(userDto.id().toString(), UserEventFactory.userLoggedIn(userDto));
+        return new AuthenticatedUserDto(userDto, generatedToken.token(), generatedToken.expiresAt());
     }
 
     @Override

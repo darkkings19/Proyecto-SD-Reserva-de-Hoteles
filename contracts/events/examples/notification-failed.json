@@ -1,0 +1,17 @@
+{
+  "event_id": "44444444-4444-4444-8444-444444444443",
+  "event_type": "NotificationFailed",
+  "version": 1,
+  "source_service": "notification-service",
+  "occurred_at": "2026-07-05T16:11:25Z",
+  "correlation_id": "dddddddd-dddd-4ddd-8ddd-dddddddddddf",
+  "payload": {
+    "notification_id": "notif-5002",
+    "user_id": "usr-1001",
+    "reservation_id": "res-20260705161000",
+    "notification_type": "CONFIRMACION",
+    "channel": "EMAIL",
+    "failure_code": "PROVIDER_UNAVAILABLE",
+    "message": "Proveedor de correo no disponible"
+  }
+}

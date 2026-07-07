@@ -1,0 +1,16 @@
+{
+  "event_id": "22222222-2222-4222-8222-222222222224",
+  "event_type": "ReservationCancelled",
+  "version": 1,
+  "source_service": "reservation-service",
+  "occurred_at": "2026-07-05T16:15:00Z",
+  "correlation_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbe",
+  "payload": {
+    "reservation_id": "res-20260705161000",
+    "user_id": "usr-1001",
+    "hotel_id": "hotel-001",
+    "room_type_id": "room-std-001",
+    "status": "CANCELADA",
+    "cancelled_reason": "USER_REQUEST"
+  }
+}

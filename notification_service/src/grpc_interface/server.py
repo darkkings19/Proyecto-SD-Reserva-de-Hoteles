@@ -49,28 +49,12 @@ class NotificationServicer(NotificationServiceServicer):
                 ).inc()
                 return SendConfirmationResponse(success=False)
 
-            notification = Notification(
+            self.process_confirmation(
                 user_id=request.user_id,
                 reservation_id=request.reservation_id,
                 tipo=request.tipo,
                 email=request.email,
             )
-            self.repository.save(notification)
-            notifications_saved_total.labels(tipo=request.tipo or "unknown").inc()
-            logger.info(
-                "Notificacion guardada: user=%s, reservation=%s, tipo=%s",
-                request.user_id,
-                request.reservation_id,
-                request.tipo,
-            )
-
-            if self.sender is not None:
-                try:
-                    self.sender.send(notification)
-                    notifications_external_total.labels(status="success").inc()
-                except Exception as e:
-                    logger.error("Error sending notification externally: %s", e)
-                    notifications_external_total.labels(status="failed").inc()
 
             return SendConfirmationResponse(success=True)
         except Exception as e:
@@ -84,3 +68,49 @@ class NotificationServicer(NotificationServiceServicer):
             return SendConfirmationResponse(success=False)
         finally:
             notification_send_duration_seconds.observe(time.perf_counter() - start)
+
+    def process_confirmation(
+        self,
+        user_id: str,
+        reservation_id: str,
+        tipo: str = "CONFIRMACION",
+        email: str = "",
+    ) -> bool:
+        notification_type = tipo or "CONFIRMACION"
+        if self._is_duplicate(user_id, reservation_id, notification_type):
+            logger.info(
+                "Duplicado detectado: key=reservation-confirmation:%s",
+                reservation_id,
+            )
+            return False
+
+        notification = Notification(
+            user_id=user_id,
+            reservation_id=reservation_id,
+            tipo=notification_type,
+            email=email,
+        )
+        self.repository.save(notification)
+        notifications_saved_total.labels(tipo=notification_type).inc()
+        logger.info(
+            "Notificacion guardada: user=%s, reservation=%s, tipo=%s",
+            user_id,
+            reservation_id,
+            notification_type,
+        )
+
+        if self.sender is not None:
+            try:
+                self.sender.send(notification)
+                notifications_external_total.labels(status="success").inc()
+            except Exception as e:
+                logger.error("Error sending notification externally: %s", e)
+                notifications_external_total.labels(status="failed").inc()
+
+        return True
+
+    def _is_duplicate(self, user_id: str, reservation_id: str, tipo: str) -> bool:
+        for notification in self.repository.get_by_user(user_id):
+            if notification.reservation_id == reservation_id and notification.tipo == tipo:
+                return True
+        return False

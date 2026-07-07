@@ -1,0 +1,14 @@
+{
+  "event_id": "55555555-5555-4555-8555-555555555551",
+  "event_type": "GatewayUserRegistered",
+  "version": 1,
+  "source_service": "api-gateway",
+  "occurred_at": "2026-07-05T16:00:01Z",
+  "correlation_id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+  "payload": {
+    "user_id": "usr-1001",
+    "email": "juan.perez@example.com",
+    "client_app": "frontend",
+    "result": "SUCCESS"
+  }
+}

@@ -1,6 +1,6 @@
 # Inventario Service — Origen X
 
-Microservicio de **Inventario/Hoteles** del sistema Origen X. Gestiona hoteles, tipos de habitaciones, precios y disponibilidad de stock. Comunicación exclusivamente por **gRPC** dentro de la red interna `origen-net`.
+Microservicio de **Inventario/Hoteles** del sistema Origen X. Gestiona hoteles, tipos de habitaciones, precios y disponibilidad de stock. Mantiene **gRPC** como comunicacion principal dentro de la red interna `origen-net` y publica eventos Kafka de inventario como apoyo transversal.
 
 ---
 
@@ -10,7 +10,7 @@ Microservicio de **Inventario/Hoteles** del sistema Origen X. Gestiona hoteles, 
 |---|---|
 | **Lenguaje** | Go 1.22 |
 | **Base de Datos** | PostgreSQL 15 (`inventario_db`) — independiente por servicio |
-| **Comunicación** | gRPC + Protobuf (sin REST) |
+| **Comunicación** | gRPC + Protobuf (sin REST) + eventos Kafka transversales |
 | **ORM** | GORM con driver pgx |
 | **Red** | Solo accesible dentro de `origen-net` — no expone puertos al host |
 
@@ -74,6 +74,40 @@ La respuesta de `SearchAvailableRooms` devuelve el campo como `stock_disponible`
 | `DB_NAME` | `inventario_db` | Nombre de la BD |
 | `DB_PORT` | `5432` | Puerto |
 | `PORT` | `50051` | Puerto gRPC |
+| `KAFKA_ENABLED` | `false` | Habilita publicacion de eventos Kafka |
+| `KAFKA_BOOTSTRAP_SERVERS` | `kafka:9092` | Brokers Kafka |
+| `KAFKA_INVENTORY_TOPIC` | `origenx.inventory.events` | Topico de eventos de inventario |
+| `KAFKA_CLIENT_ID` | `inventario-service` | Identificador del cliente Kafka |
+
+---
+
+## Eventos Kafka
+
+El servicio publica eventos JSON en `origenx.inventory.events` sin reemplazar gRPC. La publicacion es best effort: si Kafka esta deshabilitado o no disponible, `UpdateStock` mantiene el comportamiento gRPC actual y el error se registra en logs.
+
+Eventos publicados:
+
+- `InventoryStockBlocked`: despues de bloquear stock exitosamente.
+- `InventoryStockReleased`: despues de liberar stock exitosamente.
+- `InventoryStockFailed`: cuando no hay stock suficiente, la accion es invalida, no existe el tipo de habitacion o falla la actualizacion.
+
+El formato usa el sobre comun documentado en `contracts/events/README.md` con `event_id`, `event_type`, `version`, `source_service`, `occurred_at` y `payload`.
+
+Para ver eventos:
+
+```bash
+docker compose exec kafka sh -lc '/opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092 --topic origenx.inventory.events --from-beginning'
+```
+
+Prueba manual:
+
+```bash
+docker compose build inventario_service
+docker compose up -d kafka inventario_service
+docker compose logs -f inventario_service
+```
+
+Luego crea una reserva desde el frontend y verifica que aparezca `InventoryStockBlocked`.
 
 ---
 

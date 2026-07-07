@@ -10,6 +10,13 @@ import logging
 
 # Clientes locales
 from inventory_client import search_available_rooms
+from kafka_events import (
+    gateway_inventory_search_requested,
+    gateway_reservation_requested,
+    gateway_user_logged_in,
+    gateway_user_registered,
+    publisher as kafka_publisher,
+)
 from observability import setup_observability
 from rate_limiter import RateLimitMiddleware, RateLimitExceeded, check_login_rate_limit
 from resilience import call_with_retry, new_idempotency_key
@@ -115,6 +122,7 @@ async def search_rooms(req: SearchRoomsRequest):
             capacidad=req.capacidad,
             operation="search_available_rooms",
         )
+        kafka_publisher.publish("inventory-search", gateway_inventory_search_requested(req.model_dump()))
         return {"rooms": rooms, "degraded": False}
     except grpc.RpcError as e:
         logging.warning(f"Busqueda de inventario degradada tras agotar reintentos: {_grpc_message(e)}")
@@ -175,6 +183,13 @@ async def create_reservation(
             idempotency_key=key,
             operation="create_reservation",
         )
+        kafka_publisher.publish(session_user.id, gateway_reservation_requested(
+            user_id=session_user.id,
+            hotel_id=req.hotel_id,
+            room_type_id=req.room_type_id,
+            fecha_inicio=req.fecha_inicio,
+            fecha_fin=req.fecha_fin,
+        ))
         return {
             "reservation_id": result.reservation_id,
             "status": result.status,
@@ -201,6 +216,7 @@ async def register_user(req: UserRegistrationRequest, client: Annotated[UsersCli
             password=req.password,
             telefono=req.telefono
         )
+        kafka_publisher.publish(user.id, gateway_user_registered(user.id, user.email, user.nombre))
         return {
             "id": user.id,
             "nombre": user.nombre,
@@ -273,6 +289,7 @@ async def login(req: LoginRequest, request: Request, client: Annotated[UsersClie
         if not res.success:
             raise HTTPException(status_code=401, detail="Credenciales inválidas")
         
+        kafka_publisher.publish(res.user.id, gateway_user_logged_in(res.user.id, res.user.email))
         return {
             "id": res.user.id,
             "nombre": res.user.nombre,

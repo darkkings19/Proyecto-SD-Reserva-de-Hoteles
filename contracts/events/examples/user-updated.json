@@ -1,0 +1,16 @@
+{
+  "event_id": "11111111-1111-4111-8111-111111111112",
+  "event_type": "UserUpdated",
+  "version": 1,
+  "source_service": "user-service",
+  "occurred_at": "2026-07-05T16:05:00Z",
+  "correlation_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab",
+  "payload": {
+    "user_id": "usr-1001",
+    "updated_fields": [
+      "nombre",
+      "telefono"
+    ],
+    "updated_at": "2026-07-05T16:05:00Z"
+  }
+}

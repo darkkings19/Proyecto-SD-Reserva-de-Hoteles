@@ -10,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	inventoryevents "github.com/darkkings19/inventario-service/internal/events"
 	pb "github.com/darkkings19/inventario-service/proto/gen"
 	_ "github.com/lib/pq"
 	"github.com/prometheus/client_golang/prometheus"
@@ -87,6 +88,19 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
+func getEnvBool(key string, fallback bool) bool {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	switch value {
+	case "true", "TRUE", "1", "yes", "YES", "y", "Y", "on", "ON":
+		return true
+	default:
+		return false
+	}
+}
+
 func startMetricsServer(port string) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
@@ -123,7 +137,8 @@ func initTracer(ctx context.Context, serviceName string) (func(context.Context) 
 
 type inventoryServer struct {
 	pb.UnimplementedInventoryServiceServer
-	db *sql.DB
+	db             *sql.DB
+	eventPublisher inventoryevents.Publisher
 }
 
 func (s *inventoryServer) SearchAvailableRooms(ctx context.Context, req *pb.SearchRequest) (*pb.SearchResponse, error) {
@@ -183,39 +198,97 @@ func (s *inventoryServer) UpdateStock(ctx context.Context, req *pb.UpdateStockRe
 	var query string
 	actionLabel := ""
 	accionStr := fmt.Sprint(req.Accion)
+	operation := ""
 
 	if accionStr == "BLOQUEAR" || accionStr == "0" {
 		actionLabel = "bloquear"
+		operation = inventoryevents.OperationBlock
 		log.Printf("[Inventario] Bloqueando %d unidades de %s", req.Cantidad, req.RoomTypeId)
 		query = "UPDATE room_types SET stock_total = stock_total - $1 WHERE id = $2 AND stock_total >= $1"
 	} else if accionStr == "LIBERAR" || accionStr == "1" {
 		actionLabel = "liberar"
+		operation = inventoryevents.OperationRelease
 		log.Printf("[Inventario] Liberando %d unidades de %s", req.Cantidad, req.RoomTypeId)
 		query = "UPDATE room_types SET stock_total = stock_total + $1 WHERE id = $2"
 	} else {
 		inventoryErrorsTotal.WithLabelValues("update_stock", "invalid_action").Inc()
+		s.publishInventoryEvent(req.RoomTypeId, inventoryevents.NewInventoryStockFailed(
+			s.stockData(ctx, req.RoomTypeId, int(req.Cantidad), accionStr),
+			fmt.Sprintf("accion invalida: %s", accionStr),
+		))
 		return nil, status.Errorf(codes.InvalidArgument, "accion invalida: %s", accionStr)
 	}
 
 	res, err := s.db.ExecContext(ctx, query, req.Cantidad, req.RoomTypeId)
 	if err != nil {
 		inventoryErrorsTotal.WithLabelValues("update_stock", "database").Inc()
+		s.publishInventoryEvent(req.RoomTypeId, inventoryevents.NewInventoryStockFailed(
+			s.stockData(ctx, req.RoomTypeId, int(req.Cantidad), operation),
+			"error al actualizar stock",
+		))
 		return nil, status.Errorf(codes.Internal, "error al actualizar stock")
 	}
 
 	rows, _ := res.RowsAffected()
 	if rows == 0 && actionLabel == "bloquear" {
 		inventoryErrorsTotal.WithLabelValues("update_stock", "insufficient_stock").Inc()
+		s.publishInventoryEvent(req.RoomTypeId, inventoryevents.NewInventoryStockFailed(
+			s.stockData(ctx, req.RoomTypeId, int(req.Cantidad), operation),
+			"no hay stock suficiente",
+		))
 		return nil, status.Errorf(codes.ResourceExhausted, "no hay stock suficiente")
 	}
 	if rows == 0 {
 		inventoryErrorsTotal.WithLabelValues("update_stock", "room_type_not_found").Inc()
+		s.publishInventoryEvent(req.RoomTypeId, inventoryevents.NewInventoryStockFailed(
+			s.stockData(ctx, req.RoomTypeId, int(req.Cantidad), operation),
+			"room_type_id no encontrado",
+		))
 	}
 	if rows > 0 {
 		inventoryStockUpdatesTotal.WithLabelValues(actionLabel).Add(float64(req.Cantidad))
+		data := s.stockData(ctx, req.RoomTypeId, int(req.Cantidad), operation)
+		if operation == inventoryevents.OperationRelease {
+			s.publishInventoryEvent(req.RoomTypeId, inventoryevents.NewInventoryStockReleased(data))
+		} else {
+			s.publishInventoryEvent(req.RoomTypeId, inventoryevents.NewInventoryStockBlocked(data))
+		}
 	}
 
 	return &pb.UpdateStockResponse{Status: rows > 0}, nil
+}
+
+func (s *inventoryServer) stockData(ctx context.Context, roomTypeID string, quantity int, operation string) inventoryevents.StockData {
+	return inventoryevents.StockData{
+		HotelID:    s.hotelIDForRoomType(ctx, roomTypeID),
+		RoomTypeID: roomTypeID,
+		Quantity:   quantity,
+		Operation:  operation,
+	}
+}
+
+func (s *inventoryServer) hotelIDForRoomType(ctx context.Context, roomTypeID string) string {
+	var hotelID string
+	err := s.db.QueryRowContext(ctx, "SELECT hotel_id FROM room_types WHERE id = $1", roomTypeID).Scan(&hotelID)
+	if err != nil && err != sql.ErrNoRows {
+		log.Printf("[Inventario][Kafka] No se pudo obtener hotel_id para room_type_id=%s: %v", roomTypeID, err)
+	}
+	return hotelID
+}
+
+func (s *inventoryServer) publishInventoryEvent(key string, event inventoryevents.Event) {
+	if s.eventPublisher == nil || !s.eventPublisher.Enabled() {
+		return
+	}
+
+	publishCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	if err := s.eventPublisher.Publish(publishCtx, key, event); err != nil {
+		log.Printf("[Inventario][Kafka] Error publicando %s: %v", event.EventType, err)
+		return
+	}
+	log.Printf("[Inventario][Kafka] Evento publicado: %s key=%s", event.EventType, key)
 }
 
 func (s *inventoryServer) initializeDB() {
@@ -291,7 +364,19 @@ func main() {
 		log.Fatalf("No se pudo conectar a la BD de inventario tras 15 intentos: %v", err)
 	}
 
-	server := &inventoryServer{db: db}
+	eventPublisher := inventoryevents.NewPublisher(inventoryevents.Config{
+		Enabled:          getEnvBool("KAFKA_ENABLED", false),
+		BootstrapServers: getEnv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092"),
+		Topic:            getEnv("KAFKA_INVENTORY_TOPIC", "origenx.inventory.events"),
+		ClientID:         getEnv("KAFKA_CLIENT_ID", "inventario-service"),
+	})
+	defer func() {
+		if err := eventPublisher.Close(); err != nil {
+			log.Printf("[Inventario][Kafka] Error cerrando publisher: %v", err)
+		}
+	}()
+
+	server := &inventoryServer{db: db, eventPublisher: eventPublisher}
 	server.initializeDB()
 
 	port := getEnv("PORT", "50053")

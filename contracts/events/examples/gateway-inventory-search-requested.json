@@ -1,0 +1,16 @@
+{
+  "event_id": "55555555-5555-4555-8555-555555555553",
+  "event_type": "GatewayInventorySearchRequested",
+  "version": 1,
+  "source_service": "api-gateway",
+  "occurred_at": "2026-07-05T16:08:00Z",
+  "correlation_id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeee10",
+  "payload": {
+    "user_id": "usr-1001",
+    "fecha_inicio": "2026-07-10",
+    "fecha_fin": "2026-07-12",
+    "ubicacion": "Santiago",
+    "precio_max": 120000,
+    "capacidad": 2
+  }
+}

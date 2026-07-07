@@ -10,8 +10,10 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/darkkings19/mi-servicio/internal/events"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -138,6 +140,18 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
+func getEnvBool(key string, fallback bool) bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
+	switch v {
+	case "true", "1", "yes", "y", "on":
+		return true
+	case "false", "0", "no", "n", "off":
+		return false
+	default:
+		return fallback
+	}
+}
+
 func startMetricsServer(port string) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
@@ -239,6 +253,7 @@ type reservationServer struct {
 	userBreaker         *CircuitBreaker
 	inventoryBreaker    *CircuitBreaker
 	notificationBreaker *CircuitBreaker
+	eventPublisher      events.Publisher
 }
 
 func (s *reservationServer) startSaga(ctx context.Context, sagaID string, reservationID string, req *pb.CreateReservationRequest) error {
@@ -402,9 +417,19 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 		}
 	}
 
+	eventData := events.ReservationData{
+		UserID:      req.UserId,
+		HotelID:     req.HotelId,
+		RoomTypeID:  req.RoomTypeId,
+		FechaInicio: req.FechaInicio,
+		FechaFin:    req.FechaFin,
+	}
+
 	sagaID := generateWorkflowID("saga")
 	reservationId := generateWorkflowID("res")
 	montoTotal := 150.50
+	eventData.ReservationID = reservationId
+	eventData.MontoTotal = montoTotal
 
 	log.Printf("[Reservas] saga_id=%s reservation_id=%s iniciando creacion de reserva para usuario: %s", sagaID, reservationId, req.UserId)
 	if err := s.startSaga(ctx, sagaID, reservationId, req); err != nil {
@@ -412,6 +437,7 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 		reservationsFailuresTotal.WithLabelValues("database_insert").Inc()
 		return nil, status.Errorf(codes.Internal, "no se pudo iniciar la saga de reserva")
 	}
+	s.publishReservationEvent(ctx, req.UserId, events.NewReservationCreated(eventData))
 
 	log.Printf("[Saga] saga_id=%s step=user_validation action=calling_user_service user_id=%s", sagaID, req.UserId)
 	userCtx, userCancel := context.WithTimeout(ctx, 5*time.Second)
@@ -423,6 +449,7 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 		log.Printf("[Reservas] saga_id=%s error al validar usuario: %v", sagaID, errUser)
 		reservationsFailuresTotal.WithLabelValues("user_validation").Inc()
 		s.failSaga(context.WithoutCancel(ctx), sagaID, sagaUserValidationFailed, status.Convert(errUser).Message())
+		s.publishReservationEvent(ctx, req.UserId, events.NewReservationFailed(eventData, "user_validation_failed: "+status.Convert(errUser).Message()))
 		var circuitErr *ErrCircuitOpen
 		if errors.As(errUser, &circuitErr) {
 			return nil, status.Errorf(codes.Unavailable, "Servicio de usuarios no disponible en este momento")
@@ -446,6 +473,7 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 		log.Printf("[Reservas] saga_id=%s error al bloquear inventario: %v", sagaID, errInv)
 		reservationsFailuresTotal.WithLabelValues("inventory_lock").Inc()
 		s.failSaga(context.WithoutCancel(ctx), sagaID, sagaStockLockFailed, status.Convert(errInv).Message())
+		s.publishReservationEvent(ctx, req.UserId, events.NewReservationFailed(eventData, "inventory_lock_failed: "+status.Convert(errInv).Message()))
 		var circuitErr *ErrCircuitOpen
 		if errors.As(errInv, &circuitErr) {
 			return nil, status.Errorf(codes.Unavailable, "Servicio de inventario no disponible en este momento")
@@ -455,6 +483,7 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 	if !invRes.Status {
 		reservationsFailuresTotal.WithLabelValues("inventory_no_stock").Inc()
 		s.failSaga(context.WithoutCancel(ctx), sagaID, sagaStockUnavailable, "Inventario respondio status=false")
+		s.publishReservationEvent(ctx, req.UserId, events.NewReservationFailed(eventData, "inventory_no_stock"))
 		return nil, status.Errorf(codes.ResourceExhausted, "No hay stock disponible")
 	}
 	s.recordSagaTransition(ctx, sagaID, sagaStockLocked, "success", fmt.Sprintf("Stock bloqueado para room_type_id=%s", req.RoomTypeId))
@@ -473,11 +502,13 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 		log.Printf("[Reservas] saga_id=%s error al guardar en PostgreSQL: %v", sagaID, errDb)
 		reservationsFailuresTotal.WithLabelValues("database_insert").Inc()
 		s.recordSagaTransition(context.WithoutCancel(ctx), sagaID, sagaReservationInsertFailed, "failed", errDb.Error())
+		s.publishReservationEvent(ctx, req.UserId, events.NewReservationFailed(eventData, "database_insert_failed"))
 		s.compensateInventory(sagaID, req.RoomTypeId)
 		s.recordSagaTransition(context.Background(), sagaID, sagaFailed, "failed", "Reserva no persistida; se ejecuto compensacion de inventario")
 		return nil, status.Errorf(codes.Internal, "error interno al guardar la reserva")
 	}
 	s.recordSagaTransition(ctx, sagaID, sagaReservationCreated, "success", fmt.Sprintf("Reserva %s creada en PostgreSQL", reservationId))
+	s.publishReservationEvent(ctx, reservationId, events.NewReservationConfirmed(eventData))
 
 	notifBaseCtx := context.WithoutCancel(ctx)
 	s.recordSagaTransition(notifBaseCtx, sagaID, sagaNotificationDispatching, "success", "Notificacion asincrona iniciada")
@@ -509,6 +540,25 @@ func (s *reservationServer) CreateReservation(ctx context.Context, req *pb.Creat
 		Status:        "CONFIRMADA",
 		MontoTotal:    montoTotal,
 	}, nil
+}
+
+func (s *reservationServer) publishReservationEvent(ctx context.Context, key string, event events.Event) {
+	if s.eventPublisher == nil {
+		return
+	}
+	if strings.TrimSpace(key) == "" {
+		key = event.EventID
+	}
+
+	baseCtx := context.WithoutCancel(ctx)
+	go func() {
+		publishCtx, cancel := context.WithTimeout(baseCtx, 2*time.Second)
+		defer cancel()
+
+		if err := s.eventPublisher.Publish(publishCtx, key, event); err != nil {
+			log.Printf("[Reservas][Kafka] Error publicando %s: %v", event.EventType, err)
+		}
+	}()
 }
 
 func main() {
@@ -554,6 +604,18 @@ func main() {
 		log.Fatalf("Error inicializando esquema de reservas y saga: %v", err)
 	}
 
+	eventPublisher := events.NewPublisher(events.Config{
+		Enabled:          getEnvBool("KAFKA_ENABLED", false),
+		BootstrapServers: getEnv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092"),
+		Topic:            getEnv("KAFKA_RESERVATIONS_TOPIC", "origenx.reservations.events"),
+		ClientID:         getEnv("KAFKA_CLIENT_ID", "reservation-service"),
+	})
+	defer func() {
+		if err := eventPublisher.Close(); err != nil {
+			log.Printf("[Reservas][Kafka] Error cerrando publisher: %v", err)
+		}
+	}()
+
 	userHost := getEnv("USER_SERVICE_HOST", "localhost:9090")
 	userConn, err := grpc.Dial(userHost, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
 	if err != nil {
@@ -584,6 +646,7 @@ func main() {
 		userBreaker:         NewCircuitBreaker("user", 5, 15*time.Second),
 		inventoryBreaker:    NewCircuitBreaker("inventory", 5, 15*time.Second),
 		notificationBreaker: NewCircuitBreaker("notification", 5, 15*time.Second),
+		eventPublisher:      eventPublisher,
 	}
 
 	port := getEnv("PORT", "50052")

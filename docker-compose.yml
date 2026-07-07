@@ -75,6 +75,52 @@ services:
       retries: 5
 
   # ----------------------------------------
+  # MENSAJERIA TRANSVERSAL
+  # ----------------------------------------
+  kafka:
+    image: apache/kafka:latest
+    ports:
+      - "9092:9092"
+    environment:
+      - KAFKA_NODE_ID=1
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - CLUSTER_ID=4L6g3nShT-eMCtK--X86sw
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
+      - KAFKA_LOG_DIRS=/tmp/kraft-combined-logs
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+    networks:
+      - origen-net
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8082:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=origen-x
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+    networks:
+      - origen-net
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ----------------------------------------
   # MICROSERVICIOS
   # ----------------------------------------
   notification_service:
@@ -92,6 +138,12 @@ services:
       - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL:-onboarding@resend.dev}
       - DEFAULT_USER_EMAIL=${DEFAULT_USER_EMAIL:-e.loren01@ufromail.cl}
       - USER_SERVICE_HOST=${USER_SERVICE_HOST}
+      - KAFKA_ENABLED=${KAFKA_ENABLED:-true}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_RESERVATIONS_TOPIC=${KAFKA_RESERVATIONS_TOPIC:-origenx.reservations.events}
+      - KAFKA_NOTIFICATIONS_TOPIC=${KAFKA_NOTIFICATIONS_TOPIC:-origenx.notifications.events}
+      - KAFKA_CONSUMER_GROUP=${KAFKA_CONSUMER_GROUP:-notification-service}
+      - KAFKA_CLIENT_ID=notification-service
       - METRICS_PORT=9104
       - OTEL_SERVICE_NAME=notification-service
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
@@ -101,6 +153,8 @@ services:
       - origen-net
     depends_on:
       notificaciones_db:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     restart: unless-stopped
 
@@ -122,6 +176,10 @@ services:
       - NOTIFICATION_SERVICE_HOST=notification_service:50051
       - INVENTORY_SERVICE_HOST=inventario_service:50053
       - USER_SERVICE_HOST=user-service:9090
+      - KAFKA_ENABLED=${KAFKA_ENABLED:-true}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_RESERVATIONS_TOPIC=${KAFKA_RESERVATIONS_TOPIC:-origenx.reservations.events}
+      - KAFKA_CLIENT_ID=reservation-service
       - OTEL_SERVICE_NAME=reservation-service
       - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
     networks:
@@ -146,6 +204,10 @@ services:
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
       - DB_NAME=inventario_db
+      - KAFKA_ENABLED=${KAFKA_ENABLED:-true}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_INVENTORY_TOPIC=${KAFKA_INVENTORY_TOPIC:-origenx.inventory.events}
+      - KAFKA_CLIENT_ID=inventario-service
       - OTEL_SERVICE_NAME=inventory-service
       - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
     networks:
@@ -169,6 +231,10 @@ services:
       - DB_USER=${DB_USER:-sde_user}
       - DB_PASSWORD=${DB_PASSWORD:-sde_password}
       - GRPC_PORT=9090
+      - KAFKA_ENABLED=${KAFKA_ENABLED:-true}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_USERS_TOPIC=${KAFKA_USERS_TOPIC:-origenx.users.events}
+      - KAFKA_CLIENT_ID=user-service
       - OTEL_SERVICE_NAME=user-service
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - OTEL_TRACES_EXPORTER=otlp
@@ -289,6 +355,10 @@ services:
       - NOTIFICATION_SERVICE_HOST=notification_service:50051
       - INVENTORY_SERVICE_HOST=inventario_service:50053
       - USER_SERVICE_HOST=user-service:9090
+      - KAFKA_ENABLED=${KAFKA_ENABLED:-true}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_GATEWAY_TOPIC=${KAFKA_GATEWAY_TOPIC:-origenx.gateway.events}
+      - KAFKA_CLIENT_ID=api-gateway
       - OTEL_SERVICE_NAME=api-gateway
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
     networks:

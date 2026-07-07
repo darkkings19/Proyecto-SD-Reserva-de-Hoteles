@@ -3,8 +3,10 @@ module github.com/darkkings19/mi-servicio
 go 1.25
 
 require (
+	github.com/google/uuid v1.6.0
 	github.com/lib/pq v1.12.3
 	github.com/prometheus/client_golang v1.23.2
+	github.com/segmentio/kafka-go v0.4.48
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.56.0
 	go.opentelemetry.io/otel v1.31.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.31.0
@@ -19,9 +21,10 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0 // indirect
+	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/pierrec/lz4/v4 v4.1.15 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.66.1 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect

@@ -10,6 +10,7 @@ import com.sde.user.entity.UserEntity;
 import com.sde.user.entity.UserSessionEntity;
 import com.sde.user.exception.EmailAlreadyExistsException;
 import com.sde.user.exception.InvalidCredentialsException;
+import com.sde.user.events.UserEventPublisher;
 import com.sde.user.mapper.UserMapper;
 import com.sde.user.observability.UserMetrics;
 import com.sde.user.repository.UserRepository;
@@ -35,6 +36,7 @@ class UserServiceImplObservabilityTest {
     private UserRepository userRepository;
     private UserSessionRepository sessionRepository;
     private PasswordEncoder passwordEncoder;
+    private UserEventPublisher userEventPublisher;
     private SimpleMeterRegistry meterRegistry;
     private UserServiceImpl userService;
 
@@ -43,6 +45,7 @@ class UserServiceImplObservabilityTest {
         userRepository = mock(UserRepository.class);
         sessionRepository = mock(UserSessionRepository.class);
         passwordEncoder = mock(PasswordEncoder.class);
+        userEventPublisher = mock(UserEventPublisher.class);
         meterRegistry = new SimpleMeterRegistry();
         userService = new UserServiceImpl(
                 userRepository,
@@ -50,7 +53,8 @@ class UserServiceImplObservabilityTest {
                 passwordEncoder,
                 new UserMapper(),
                 new UserMetrics(meterRegistry),
-                new JwtTokenService(new ObjectMapper(), "test-secret", 30)
+                new JwtTokenService(new ObjectMapper(), "test-secret", 30),
+                userEventPublisher
         );
     }
 

@@ -1,0 +1,15 @@
+{
+  "event_id": "11111111-1111-4111-8111-111111111111",
+  "event_type": "UserCreated",
+  "version": 1,
+  "source_service": "user-service",
+  "occurred_at": "2026-07-05T16:00:00Z",
+  "correlation_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "payload": {
+    "user_id": "usr-1001",
+    "nombre": "Juan Perez",
+    "email": "juan.perez@example.com",
+    "role": "CLIENTE",
+    "created_at": "2026-07-05T16:00:00Z"
+  }
+}

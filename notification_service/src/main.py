@@ -13,6 +13,14 @@ from infrastructure.postgres_repository import PostgresNotificationRepository
 from infrastructure.resend_sender import ResendNotificationSender
 from psycopg_pool import ConnectionPool
 from tracing import setup_tracing
+from kafka_events.worker import KafkaSettings, NotificationKafkaWorker
+
+
+def get_bool_env(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"true", "1", "yes", "y", "on"}
 
 def serve():
     load_dotenv()
@@ -58,6 +66,19 @@ def serve():
         logging.info("NotificationSender enabled via Resend")
 
     servicer = NotificationServicer(repo, sender=sender)
+    kafka_worker = NotificationKafkaWorker(
+        KafkaSettings(
+            enabled=get_bool_env("KAFKA_ENABLED", False),
+            bootstrap_servers=os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092"),
+            reservations_topic=os.environ.get("KAFKA_RESERVATIONS_TOPIC", "origenx.reservations.events"),
+            notifications_topic=os.environ.get("KAFKA_NOTIFICATIONS_TOPIC", "origenx.notifications.events"),
+            consumer_group=os.environ.get("KAFKA_CONSUMER_GROUP", "notification-service"),
+            client_id=os.environ.get("KAFKA_CLIENT_ID", "notification-service"),
+            default_email=os.environ.get("DEFAULT_USER_EMAIL", "unknown@example.com"),
+        ),
+        servicer,
+    )
+    kafka_worker.start()
 
     # Setup server
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
@@ -73,6 +94,7 @@ def serve():
         logging.info("Received shutdown signal")
         all_rpcs_done_event = server.stop(30)
         all_rpcs_done_event.wait(30)
+        kafka_worker.stop()
         pool.close()
         logging.info("Server stopped gracefully")
         
@@ -84,6 +106,7 @@ def serve():
             time.sleep(86400)
     except KeyboardInterrupt:
         server.stop(0)
+        kafka_worker.stop()
         pool.close()
 
 if __name__ == "__main__":

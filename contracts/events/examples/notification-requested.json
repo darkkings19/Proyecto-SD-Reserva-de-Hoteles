@@ -1,0 +1,15 @@
+{
+  "event_id": "44444444-4444-4444-8444-444444444441",
+  "event_type": "NotificationRequested",
+  "version": 1,
+  "source_service": "reservation-service",
+  "occurred_at": "2026-07-05T16:11:05Z",
+  "correlation_id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "payload": {
+    "notification_id": "notif-5001",
+    "user_id": "usr-1001",
+    "reservation_id": "res-20260705161000",
+    "notification_type": "CONFIRMACION",
+    "channel": "EMAIL"
+  }
+}

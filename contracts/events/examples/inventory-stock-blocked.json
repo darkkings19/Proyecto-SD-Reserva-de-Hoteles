@@ -1,0 +1,16 @@
+{
+  "event_id": "33333333-3333-4333-8333-333333333331",
+  "event_type": "InventoryStockBlocked",
+  "version": 1,
+  "source_service": "inventario-service",
+  "occurred_at": "2026-07-05T16:10:30Z",
+  "correlation_id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "payload": {
+    "operation_id": "stock-op-7001",
+    "reservation_id": "res-20260705161000",
+    "hotel_id": "hotel-001",
+    "room_type_id": "room-std-001",
+    "cantidad": 1,
+    "stock_disponible": 4
+  }
+}
